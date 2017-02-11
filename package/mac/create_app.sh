@@ -32,7 +32,6 @@ $JAVA_HOME/bin/javapackager \
     -srcfiles "core/src/main/resources/bitsquare.policy" \
     -appclass io.bitsquare.app.BitsquareAppMain \
     -outfile Bitsquare \
-    -BjvmOptions=-Djava.net.preferIPv4Stack=true \
     -BjvmOptions=-Djava.security.manager \
     -BjvmOptions=-Djava.security.debug=failure \
     -BjvmOptions=-Djava.security.policy=file:bitsquare.policy
