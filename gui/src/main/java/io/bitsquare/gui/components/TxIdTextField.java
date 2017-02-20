@@ -19,8 +19,8 @@ package io.bitsquare.gui.components;
 
 import de.jensd.fx.fontawesome.AwesomeDude;
 import de.jensd.fx.fontawesome.AwesomeIcon;
-import io.bitsquare.btc.WalletService;
 import io.bitsquare.btc.listeners.TxConfidenceListener;
+import io.bitsquare.btc.wallet.BtcWalletService;
 import io.bitsquare.common.util.Utilities;
 import io.bitsquare.gui.components.indicator.TxConfidenceIndicator;
 import io.bitsquare.gui.main.overlays.popups.Popup;
@@ -43,9 +43,9 @@ public class TxIdTextField extends AnchorPane {
         TxIdTextField.preferences = preferences;
     }
 
-    private static WalletService walletService;
+    private static BtcWalletService walletService;
 
-    public static void setWalletService(WalletService walletService) {
+    public static void setWalletService(BtcWalletService walletService) {
         TxIdTextField.walletService = walletService;
     }
 

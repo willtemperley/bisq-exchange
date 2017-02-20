@@ -19,9 +19,9 @@ package io.bitsquare.trade.protocol.trade;
 
 import io.bitsquare.app.Version;
 import io.bitsquare.arbitration.ArbitratorManager;
-import io.bitsquare.btc.TradeWalletService;
-import io.bitsquare.btc.WalletService;
 import io.bitsquare.btc.data.RawTransactionInput;
+import io.bitsquare.btc.wallet.BtcWalletService;
+import io.bitsquare.btc.wallet.TradeWalletService;
 import io.bitsquare.common.crypto.KeyRing;
 import io.bitsquare.common.crypto.PubKeyRing;
 import io.bitsquare.common.taskrunner.Model;
@@ -60,7 +60,7 @@ public class ProcessModel implements Model, Serializable {
     // Transient/Immutable
     transient private TradeManager tradeManager;
     transient private OpenOfferManager openOfferManager;
-    transient private WalletService walletService;
+    transient private BtcWalletService walletService;
     transient private TradeWalletService tradeWalletService;
     transient private ArbitratorManager arbitratorManager;
     transient private Offer offer;
@@ -87,6 +87,7 @@ public class ProcessModel implements Model, Serializable {
     private Transaction takeOfferFeeTx;
     private boolean useSavingsWallet;
     private Coin fundsNeededForTrade;
+    private byte[] myMultiSigPubKey;
 
     public ProcessModel() {
         tradingPeer = new TradingPeer();
@@ -104,7 +105,7 @@ public class ProcessModel implements Model, Serializable {
                                          TradeManager tradeManager,
                                          OpenOfferManager openOfferManager,
                                          P2PService p2PService,
-                                         WalletService walletService,
+                                         BtcWalletService walletService,
                                          TradeWalletService tradeWalletService,
                                          ArbitratorManager arbitratorManager,
                                          User user,
@@ -139,7 +140,7 @@ public class ProcessModel implements Model, Serializable {
         return openOfferManager;
     }
 
-    public WalletService getWalletService() {
+    public BtcWalletService getWalletService() {
         return walletService;
     }
 
@@ -159,7 +160,7 @@ public class ProcessModel implements Model, Serializable {
         return user;
     }
 
-    public NodeAddress getMyAddress() {
+    public NodeAddress getMyNodeAddress() {
         return p2PService.getAddress();
     }
 
@@ -283,6 +284,14 @@ public class ProcessModel implements Model, Serializable {
 
     public Transaction getTakeOfferFeeTx() {
         return takeOfferFeeTx;
+    }
+
+    public void setMyMultiSigPubKey(byte[] myMultiSigPubKey) {
+        this.myMultiSigPubKey = myMultiSigPubKey;
+    }
+
+    public byte[] getMyMultiSigPubKey() {
+        return myMultiSigPubKey;
     }
 
     public boolean getUseSavingsWallet() {

@@ -21,9 +21,9 @@ import com.google.inject.Inject;
 import io.bitsquare.app.DevFlags;
 import io.bitsquare.app.Log;
 import io.bitsquare.btc.AddressEntry;
-import io.bitsquare.btc.TradeWalletService;
-import io.bitsquare.btc.WalletService;
-import io.bitsquare.btc.pricefeed.PriceFeedService;
+import io.bitsquare.btc.provider.price.PriceFeedService;
+import io.bitsquare.btc.wallet.BtcWalletService;
+import io.bitsquare.btc.wallet.TradeWalletService;
 import io.bitsquare.common.Timer;
 import io.bitsquare.common.UserThread;
 import io.bitsquare.common.crypto.KeyRing;
@@ -78,11 +78,11 @@ public class OpenOfferManager implements PeerManager.Listener, DecryptedDirectMe
     private final KeyRing keyRing;
     private final User user;
     private final P2PService p2PService;
-    private final WalletService walletService;
+    private final BtcWalletService walletService;
     private final TradeWalletService tradeWalletService;
     private final OfferBookService offerBookService;
     private final ClosedTradableManager closedTradableManager;
-    private Preferences preferences;
+    private final Preferences preferences;
 
     private final TradableList<OpenOffer> openOffers;
     private final Storage<TradableList<OpenOffer>> openOffersStorage;
@@ -98,7 +98,7 @@ public class OpenOfferManager implements PeerManager.Listener, DecryptedDirectMe
     public OpenOfferManager(KeyRing keyRing,
                             User user,
                             P2PService p2PService,
-                            WalletService walletService,
+                            BtcWalletService walletService,
                             TradeWalletService tradeWalletService,
                             OfferBookService offerBookService,
                             ClosedTradableManager closedTradableManager,
@@ -202,7 +202,7 @@ public class OpenOfferManager implements PeerManager.Listener, DecryptedDirectMe
     // BootstrapListener delegate
     ///////////////////////////////////////////////////////////////////////////////////////////
 
-    public void onBootstrapComplete() {
+    private void onBootstrapComplete() {
         stopped = false;
 
         // Republish means we send the complete offer object
@@ -551,7 +551,7 @@ public class OpenOfferManager implements PeerManager.Listener, DecryptedDirectMe
     private void refreshOffer(OpenOffer openOffer) {
         offerBookService.refreshTTL(openOffer.getOffer(),
                 () -> log.debug("Successful refreshed TTL for offer"),
-                errorMessage -> log.warn(errorMessage));
+                log::warn);
     }
 
     private void restart() {

@@ -18,24 +18,24 @@
 package io.bitsquare.gui.main.funds.withdrawal;
 
 import io.bitsquare.btc.AddressEntry;
-import io.bitsquare.btc.WalletService;
 import io.bitsquare.btc.listeners.BalanceListener;
+import io.bitsquare.btc.wallet.BtcWalletService;
 import io.bitsquare.gui.util.BSFormatter;
 import javafx.scene.control.Label;
 import org.bitcoinj.core.Address;
 import org.bitcoinj.core.Coin;
 import org.bitcoinj.core.Transaction;
 
-public class WithdrawalListItem {
+class WithdrawalListItem {
     private final BalanceListener balanceListener;
     private final Label balanceLabel;
     private final AddressEntry addressEntry;
-    private final WalletService walletService;
+    private final BtcWalletService walletService;
     private final BSFormatter formatter;
     private Coin balance;
     private final String addressString;
 
-    public WithdrawalListItem(AddressEntry addressEntry, WalletService walletService,
+    public WithdrawalListItem(AddressEntry addressEntry, BtcWalletService walletService,
                               BSFormatter formatter) {
         this.addressEntry = addressEntry;
         this.walletService = walletService;
@@ -83,12 +83,12 @@ public class WithdrawalListItem {
 
         WithdrawalListItem that = (WithdrawalListItem) o;
 
-        return !(addressEntry != null ? !addressEntry.equals(that.addressEntry) : that.addressEntry != null);
+        return addressEntry.equals(that.addressEntry);
     }
 
     @Override
     public int hashCode() {
-        return addressEntry != null ? addressEntry.hashCode() : 0;
+        return addressEntry.hashCode();
     }
 
     private Address getAddress() {

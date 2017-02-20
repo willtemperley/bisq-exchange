@@ -19,14 +19,14 @@ package io.bitsquare.trade.protocol.trade.tasks.taker;
 
 import io.bitsquare.arbitration.Arbitrator;
 import io.bitsquare.btc.AddressEntry;
-import io.bitsquare.btc.FeePolicy;
-import io.bitsquare.btc.WalletService;
+import io.bitsquare.btc.wallet.BtcWalletService;
 import io.bitsquare.common.taskrunner.TaskRunner;
 import io.bitsquare.p2p.NodeAddress;
 import io.bitsquare.trade.Trade;
 import io.bitsquare.trade.protocol.trade.ArbitrationSelectionRule;
 import io.bitsquare.trade.protocol.trade.tasks.TradeTask;
 import io.bitsquare.user.User;
+import org.bitcoinj.core.Address;
 import org.bitcoinj.core.Transaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +36,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class CreateTakeOfferFeeTx extends TradeTask {
     private static final Logger log = LoggerFactory.getLogger(CreateTakeOfferFeeTx.class);
 
+    @SuppressWarnings({"WeakerAccess", "unused"})
     public CreateTakeOfferFeeTx(TaskRunner taskHandler, Trade trade) {
         super(taskHandler, trade);
     }
@@ -50,15 +51,22 @@ public class CreateTakeOfferFeeTx extends TradeTask {
             log.debug("selectedArbitratorAddress " + selectedArbitratorNodeAddress);
             Arbitrator selectedArbitrator = user.getAcceptedArbitratorByAddress(selectedArbitratorNodeAddress);
             checkNotNull(selectedArbitrator, "selectedArbitrator must not be null at CreateTakeOfferFeeTx");
-            WalletService walletService = processModel.getWalletService();
+            BtcWalletService walletService = processModel.getWalletService();
             String id = model.getOffer().getId();
+            AddressEntry addressEntry = walletService.getOrCreateAddressEntry(id, AddressEntry.Context.OFFER_FUNDING);
+            AddressEntry reservedForTradeAddressEntry = walletService.getOrCreateAddressEntry(id, AddressEntry.Context.RESERVED_FOR_TRADE);
+            AddressEntry changeAddressEntry = walletService.getOrCreateAddressEntry(AddressEntry.Context.AVAILABLE);
+            Address fundingAddress = addressEntry.getAddress();
+            Address reservedForTradeAddress = reservedForTradeAddressEntry.getAddress();
+            Address changeAddress = changeAddressEntry.getAddress();
             Transaction createTakeOfferFeeTx = processModel.getTradeWalletService().createTradingFeeTx(
-                    walletService.getOrCreateAddressEntry(id, AddressEntry.Context.OFFER_FUNDING).getAddress(),
-                    walletService.getOrCreateAddressEntry(id, AddressEntry.Context.RESERVED_FOR_TRADE).getAddress(),
-                    walletService.getOrCreateAddressEntry(AddressEntry.Context.AVAILABLE).getAddress(),
+                    fundingAddress,
+                    reservedForTradeAddress,
+                    changeAddress,
                     processModel.getFundsNeededForTrade(),
                     processModel.getUseSavingsWallet(),
-                    FeePolicy.getTakeOfferFee(),
+                    trade.getTakeOfferFee(),
+                    trade.getTxFee(),
                     selectedArbitrator.getBtcAddress());
 
             processModel.setTakeOfferFeeTx(createTakeOfferFeeTx);

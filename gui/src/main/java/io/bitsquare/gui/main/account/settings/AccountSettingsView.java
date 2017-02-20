@@ -103,10 +103,6 @@ public class AccountSettingsView extends ActivatableViewAndModel {
                 selectedViewClass = FiatAccountsView.class;
 
             loadView(selectedViewClass);
-                        
-              /*  navigation.navigateTo(MainView.class, AccountView.class, AccountSettingsView.class, FiatAccountsView.class);
-            else
-                navigation.navigateTo(MainView.class, AccountView.class, AccountSettingsView.class, selectedViewClass);*/
         } else if (viewPath.size() == 4 && viewPath.indexOf(AccountSettingsView.class) == 2) {
             selectedViewClass = viewPath.get(3);
             loadView(selectedViewClass);

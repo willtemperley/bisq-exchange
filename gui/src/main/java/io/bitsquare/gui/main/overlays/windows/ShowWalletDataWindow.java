@@ -17,7 +17,7 @@
 
 package io.bitsquare.gui.main.overlays.windows;
 
-import io.bitsquare.btc.WalletService;
+import io.bitsquare.btc.wallet.WalletsManager;
 import io.bitsquare.common.util.Tuple2;
 import io.bitsquare.common.util.Utilities;
 import io.bitsquare.gui.main.overlays.Overlay;
@@ -34,15 +34,15 @@ import static io.bitsquare.gui.util.FormBuilder.addLabelTextArea;
 
 public class ShowWalletDataWindow extends Overlay<ShowWalletDataWindow> {
     private static final Logger log = LoggerFactory.getLogger(ShowWalletDataWindow.class);
-    private WalletService walletService;
+    private final WalletsManager walletsManager;
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Public API
     ///////////////////////////////////////////////////////////////////////////////////////////
 
-    public ShowWalletDataWindow(WalletService walletService) {
-        this.walletService = walletService;
+    public ShowWalletDataWindow(WalletsManager walletsManager) {
+        this.walletsManager = walletsManager;
         type = Type.Attention;
     }
 
@@ -50,7 +50,7 @@ public class ShowWalletDataWindow extends Overlay<ShowWalletDataWindow> {
         if (headLine == null)
             headLine = "Wallet data";
 
-        width = 1000;
+        width = 1200;
         createGridPane();
         addHeadLine();
         addSeparator();
@@ -82,16 +82,21 @@ public class ShowWalletDataWindow extends Overlay<ShowWalletDataWindow> {
         Label label = labelTextAreaTuple2.first;
         label.setMinWidth(150);
         textArea.setPrefHeight(500);
+        textArea.setStyle("-fx-font-size: 10;");
         CheckBox isUpdateCheckBox = addLabelCheckBox(gridPane, ++rowIndex, "Include private keys:", "").second;
         isUpdateCheckBox.setSelected(false);
 
         isUpdateCheckBox.selectedProperty().addListener((observable, oldValue, newValue) -> {
-            textArea.setText(walletService.exportWalletData(isUpdateCheckBox.isSelected()));
+            showWallet(textArea, isUpdateCheckBox);
         });
 
-        textArea.setText(walletService.exportWalletData(isUpdateCheckBox.isSelected()));
+        showWallet(textArea, isUpdateCheckBox);
 
         actionButtonText("Copy to clipboard");
         onAction(() -> Utilities.copyToClipboard(textArea.getText()));
+    }
+
+    private void showWallet(TextArea textArea, CheckBox includePrivKeysCheckBox) {
+        textArea.setText(walletsManager.getWalletsAsString(includePrivKeysCheckBox.isSelected()));
     }
 }

@@ -25,6 +25,7 @@ import io.bitsquare.btc.UserAgent;
 import io.bitsquare.common.CommonOptionKeys;
 import io.bitsquare.common.crypto.KeyStorage;
 import io.bitsquare.common.util.Utilities;
+import io.bitsquare.dao.blockchain.RpcOptionKeys;
 import io.bitsquare.network.NetworkOptionKeys;
 import io.bitsquare.storage.Storage;
 import io.bitsquare.util.spring.JOptCommandLinePropertySource;
@@ -76,9 +77,9 @@ public class BitsquareEnvironment extends StandardEnvironment {
     private final String userDataDir;
     private final String appDataDir;
     private final String btcNetworkDir;
-    private final String logLevel, priceFeedProviders;
+    private final String logLevel, providers;
     private BitcoinNetwork bitcoinNetwork;
-    private final String btcNodes, seedNodes, ignoreDevMsg, useTorForBtc,
+    private final String btcNodes, seedNodes, ignoreDevMsg, useTorForBtc, rpcUser, rpcPassword, rpcPort, rpcBlockPort, rpcWalletPort,
             myAddress, banList, dumpStatistics, maxMemory, socks5ProxyBtcAddress, socks5ProxyHttpAddress;
 
     public BitsquareEnvironment(OptionSet options) {
@@ -144,12 +145,27 @@ public class BitsquareEnvironment extends StandardEnvironment {
         maxMemory = commandLineProperties.containsProperty(AppOptionKeys.MAX_MEMORY) ?
                 (String) commandLineProperties.getProperty(AppOptionKeys.MAX_MEMORY) :
                 "";
-        priceFeedProviders = commandLineProperties.containsProperty(AppOptionKeys.PRICE_FEED_PROVIDERS) ?
-                (String) commandLineProperties.getProperty(AppOptionKeys.PRICE_FEED_PROVIDERS) :
+        providers = commandLineProperties.containsProperty(AppOptionKeys.PROVIDERS) ?
+                (String) commandLineProperties.getProperty(AppOptionKeys.PROVIDERS) :
                 "";
 
         seedNodes = commandLineProperties.containsProperty(NetworkOptionKeys.SEED_NODES_KEY) ?
                 (String) commandLineProperties.getProperty(NetworkOptionKeys.SEED_NODES_KEY) :
+                "";
+        rpcUser = commandLineProperties.containsProperty(RpcOptionKeys.RPC_USER) ?
+                (String) commandLineProperties.getProperty(RpcOptionKeys.RPC_USER) :
+                "";
+        rpcPassword = commandLineProperties.containsProperty(RpcOptionKeys.RPC_PASSWORD) ?
+                (String) commandLineProperties.getProperty(RpcOptionKeys.RPC_PASSWORD) :
+                "";
+        rpcPort = commandLineProperties.containsProperty(RpcOptionKeys.RPC_PORT) ?
+                (String) commandLineProperties.getProperty(RpcOptionKeys.RPC_PORT) :
+                "";
+        rpcBlockPort = commandLineProperties.containsProperty(RpcOptionKeys.RPC_BLOCK_PORT) ?
+                (String) commandLineProperties.getProperty(RpcOptionKeys.RPC_BLOCK_PORT) :
+                "";
+        rpcWalletPort = commandLineProperties.containsProperty(RpcOptionKeys.RPC_WALLET_PORT) ?
+                (String) commandLineProperties.getProperty(RpcOptionKeys.RPC_WALLET_PORT) :
                 "";
 
         myAddress = commandLineProperties.containsProperty(NetworkOptionKeys.MY_ADDRESS) ?
@@ -176,10 +192,6 @@ public class BitsquareEnvironment extends StandardEnvironment {
         MutablePropertySources propertySources = this.getPropertySources();
         propertySources.addFirst(commandLineProperties);
         try {
-            propertySources.addLast(appDirProperties());
-            propertySources.addLast(homeDirProperties());
-            propertySources.addLast(classpathProperties());
-
             bitcoinNetwork = BitcoinNetwork.valueOf(getProperty(BtcOptionKeys.BTC_NETWORK, BitcoinNetwork.DEFAULT.name()).toUpperCase());
             btcNetworkDir = Paths.get(appDataDir, bitcoinNetwork.name().toLowerCase()).toString();
             File btcNetworkDirFile = new File(btcNetworkDir);
@@ -236,7 +248,13 @@ public class BitsquareEnvironment extends StandardEnvironment {
                 setProperty(AppOptionKeys.APP_NAME_KEY, appName);
                 setProperty(AppOptionKeys.MAX_MEMORY, maxMemory);
                 setProperty(AppOptionKeys.USER_DATA_DIR_KEY, userDataDir);
-                setProperty(AppOptionKeys.PRICE_FEED_PROVIDERS, priceFeedProviders);
+                setProperty(AppOptionKeys.PROVIDERS, providers);
+
+                setProperty(RpcOptionKeys.RPC_USER, rpcUser);
+                setProperty(RpcOptionKeys.RPC_PASSWORD, rpcPassword);
+                setProperty(RpcOptionKeys.RPC_PORT, rpcPort);
+                setProperty(RpcOptionKeys.RPC_BLOCK_PORT, rpcBlockPort);
+                setProperty(RpcOptionKeys.RPC_WALLET_PORT, rpcWalletPort);
 
                 setProperty(AppOptionKeys.BTC_NODES, btcNodes);
                 setProperty(AppOptionKeys.USE_TOR_FOR_BTC, useTorForBtc);

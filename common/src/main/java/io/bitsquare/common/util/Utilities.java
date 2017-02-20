@@ -28,6 +28,7 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.bitcoinj.core.Coin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,6 +52,7 @@ public class Utilities {
     public static final String LB = System.getProperty("line.separator");
     public static final String LB2 = LB + LB;
 
+    // TODO check out Jackson lib
     public static String objectToJson(Object object) {
         Gson gson = new GsonBuilder()
                 .setExclusionStrategies(new AnnotationExclusionStrategy())
@@ -393,6 +395,21 @@ public class Utilities {
 
     public static void setThreadName(String name) {
         Thread.currentThread().setName(name + "-" + new Random().nextInt(10000));
+    }
+
+    public static Coin getFeePerBtc(Coin feePerBtc, Coin amount) {
+        double feePerBtcAsDouble = (double) feePerBtc.value;
+        double amountAsDouble = (double) amount.value;
+        double btcAsDouble = (double) Coin.COIN.value;
+        return Coin.valueOf(Math.round(feePerBtcAsDouble * (amountAsDouble / btcAsDouble)));
+    }
+
+    public static Coin minCoin(Coin a, Coin b) {
+        return a.compareTo(b) <= 0 ? a : b;
+    }
+
+    public static Coin maxCoin(Coin a, Coin b) {
+        return a.compareTo(b) >= 0 ? a : b;
     }
 
     private static class AnnotationExclusionStrategy implements ExclusionStrategy {

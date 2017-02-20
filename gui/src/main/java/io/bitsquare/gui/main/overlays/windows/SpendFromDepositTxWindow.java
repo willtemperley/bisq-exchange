@@ -18,9 +18,9 @@
 package io.bitsquare.gui.main.overlays.windows;
 
 import com.google.common.util.concurrent.FutureCallback;
-import io.bitsquare.btc.TradeWalletService;
 import io.bitsquare.btc.exceptions.TransactionVerificationException;
 import io.bitsquare.btc.exceptions.WalletException;
+import io.bitsquare.btc.wallet.TradeWalletService;
 import io.bitsquare.common.UserThread;
 import io.bitsquare.gui.components.InputTextField;
 import io.bitsquare.gui.main.overlays.Overlay;
@@ -30,19 +30,17 @@ import javafx.scene.input.KeyCode;
 import org.bitcoinj.core.AddressFormatException;
 import org.bitcoinj.core.Coin;
 import org.bitcoinj.core.Transaction;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 import static io.bitsquare.gui.util.FormBuilder.addLabelInputTextField;
 
 public class SpendFromDepositTxWindow extends Overlay<SpendFromDepositTxWindow> {
     private static final Logger log = LoggerFactory.getLogger(SpendFromDepositTxWindow.class);
-    private TradeWalletService tradeWalletService;
+    private final TradeWalletService tradeWalletService;
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -90,7 +88,8 @@ public class SpendFromDepositTxWindow extends Overlay<SpendFromDepositTxWindow> 
         InputTextField buyerPayoutAmount = addLabelInputTextField(gridPane, ++rowIndex, "buyerPayoutAmount:").second;
         InputTextField sellerPayoutAmount = addLabelInputTextField(gridPane, ++rowIndex, "sellerPayoutAmount:").second;
         InputTextField arbitratorPayoutAmount = addLabelInputTextField(gridPane, ++rowIndex, "arbitratorPayoutAmount:").second;
-
+        InputTextField txFee = addLabelInputTextField(gridPane, ++rowIndex, "Tx fee:").second;
+        
         InputTextField buyerAddressString = addLabelInputTextField(gridPane, ++rowIndex, "buyerAddressString:").second;
         InputTextField sellerAddressString = addLabelInputTextField(gridPane, ++rowIndex, "sellerAddressString:").second;
         InputTextField arbitratorAddressString = addLabelInputTextField(gridPane, ++rowIndex, "arbitratorAddressString:").second;
@@ -104,11 +103,6 @@ public class SpendFromDepositTxWindow extends Overlay<SpendFromDepositTxWindow> 
         InputTextField arbitratorPubKeyAsHex = addLabelInputTextField(gridPane, ++rowIndex, "arbitratorPubKeyAsHex:").second;
 
         InputTextField P2SHMultiSigOutputScript = addLabelInputTextField(gridPane, ++rowIndex, "P2SHMultiSigOutputScript:").second;
-        InputTextField buyerPubKeysInputTextField = addLabelInputTextField(gridPane, ++rowIndex, "buyerPubKeys:").second;
-        InputTextField sellerPubKeysInputTextField = addLabelInputTextField(gridPane, ++rowIndex, "sellerPubKeys:").second;
-
-        List<String> buyerPubKeys = !buyerPubKeysInputTextField.getText().isEmpty() ? Arrays.asList(buyerPubKeysInputTextField.getText().split(",")) : new ArrayList<>();
-        List<String> sellerPubKeys = !sellerPubKeysInputTextField.getText().isEmpty() ? Arrays.asList(sellerPubKeysInputTextField.getText().split(",")) : new ArrayList<>();
 
         
         // Notes: 
@@ -144,15 +138,8 @@ public class SpendFromDepositTxWindow extends Overlay<SpendFromDepositTxWindow> 
 
         P2SHMultiSigOutputScript.setText("");
 
-        sellerPubKeys = Arrays.asList();
-                
-        buyerPubKeys = Arrays.asList();
-
-
         actionButtonText("Sign and publish transaction");
 
-        final List<String> finalSellerPubKeys = sellerPubKeys;
-        final List<String> finalBuyerPubKeys = buyerPubKeys;
         FutureCallback<Transaction> callback = new FutureCallback<Transaction>() {
             @Override
             public void onSuccess(@Nullable Transaction result) {
@@ -166,7 +153,7 @@ public class SpendFromDepositTxWindow extends Overlay<SpendFromDepositTxWindow> 
             }
 
             @Override
-            public void onFailure(Throwable t) {
+            public void onFailure(@NotNull Throwable t) {
                 log.error(t.toString());
                 log.error("onFailure");
                 UserThread.execute(() -> new Popup<>().warning(t.toString()).show());
@@ -178,6 +165,7 @@ public class SpendFromDepositTxWindow extends Overlay<SpendFromDepositTxWindow> 
                         Coin.parseCoin(buyerPayoutAmount.getText()),
                         Coin.parseCoin(sellerPayoutAmount.getText()),
                         Coin.parseCoin(arbitratorPayoutAmount.getText()),
+                        Coin.parseCoin(txFee.getText()),
                         buyerAddressString.getText(),
                         sellerAddressString.getText(),
                         arbitratorAddressString.getText(),
@@ -188,8 +176,6 @@ public class SpendFromDepositTxWindow extends Overlay<SpendFromDepositTxWindow> 
                         sellerPubKeyAsHex.getText(),
                         arbitratorPubKeyAsHex.getText(),
                         P2SHMultiSigOutputScript.getText(),
-                        finalBuyerPubKeys,
-                        finalSellerPubKeys,
                         callback);
             } catch (AddressFormatException | WalletException | TransactionVerificationException e) {
                 log.error(e.toString());

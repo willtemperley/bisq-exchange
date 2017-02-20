@@ -18,6 +18,7 @@
 package io.bitsquare.trade.protocol.trade.tasks.taker;
 
 import io.bitsquare.btc.AddressEntry;
+import io.bitsquare.btc.wallet.BtcWalletService;
 import io.bitsquare.common.taskrunner.TaskRunner;
 import io.bitsquare.p2p.messaging.SendMailboxMessageListener;
 import io.bitsquare.trade.Trade;
@@ -28,11 +29,13 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 public class SendPayDepositRequest extends TradeTask {
     private static final Logger log = LoggerFactory.getLogger(SendPayDepositRequest.class);
 
+    @SuppressWarnings({"WeakerAccess", "unused"})
     public SendPayDepositRequest(TaskRunner taskHandler, Trade trade) {
         super(taskHandler, trade);
     }
@@ -45,16 +48,25 @@ public class SendPayDepositRequest extends TradeTask {
             checkNotNull(trade.getTradeAmount(), "TradeAmount must not be null");
             checkNotNull(trade.getTakeOfferFeeTxId(), "TakeOfferFeeTxId must not be null");
 
+            BtcWalletService walletService = processModel.getWalletService();
+            String id = processModel.getOffer().getId();
+            AddressEntry takerPayoutAddressEntry = walletService.getOrCreateAddressEntry(id, AddressEntry.Context.TRADE_PAYOUT);
+            checkArgument(!walletService.getAddressEntry(id, AddressEntry.Context.MULTI_SIG).isPresent(), "addressEntry must not be set here.");
+            AddressEntry addressEntry = walletService.getOrCreateAddressEntry(id, AddressEntry.Context.MULTI_SIG);
+            byte[] takerMultiSigPubKey = addressEntry.getPubKey();
+            String takerPayoutAddressString = takerPayoutAddressEntry.getAddressString();
             PayDepositRequest payDepositRequest = new PayDepositRequest(
-                    processModel.getMyAddress(),
+                    processModel.getMyNodeAddress(),
                     processModel.getId(),
                     trade.getTradeAmount().value,
                     trade.getTradePrice().value,
+                    trade.getTxFee(),
+                    trade.getTakeOfferFee(),
                     processModel.getRawTransactionInputs(),
                     processModel.getChangeOutputValue(),
                     processModel.getChangeOutputAddress(),
-                    processModel.getWalletService().getOrCreateAddressEntry(processModel.getOffer().getId(), AddressEntry.Context.MULTI_SIG).getPubKey(),
-                    processModel.getWalletService().getOrCreateAddressEntry(processModel.getOffer().getId(), AddressEntry.Context.TRADE_PAYOUT).getAddressString(),
+                    takerMultiSigPubKey,
+                    takerPayoutAddressString,
                     processModel.getPubKeyRing(),
                     processModel.getPaymentAccountContractData(trade),
                     processModel.getAccountId(),
@@ -62,6 +74,7 @@ public class SendPayDepositRequest extends TradeTask {
                     new ArrayList<>(processModel.getUser().getAcceptedArbitratorAddresses()),
                     trade.getArbitratorNodeAddress()
             );
+            processModel.setMyMultiSigPubKey(takerMultiSigPubKey);
 
             processModel.getP2PService().sendEncryptedMailboxMessage(
                     trade.getTradingPeerNodeAddress(),

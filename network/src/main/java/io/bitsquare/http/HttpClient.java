@@ -25,6 +25,7 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.URL;
+import java.util.UUID;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -32,28 +33,32 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class HttpClient {
     private static final Logger log = LoggerFactory.getLogger(HttpClient.class);
 
+
     @Nullable
     private Socks5ProxyProvider socks5ProxyProvider;
     private String baseUrl;
     private boolean ignoreSocks5Proxy;
+    private final String uid;
 
     @Inject
     public HttpClient(@Nullable Socks5ProxyProvider socks5ProxyProvider) {
         this.socks5ProxyProvider = socks5ProxyProvider;
+        uid = UUID.randomUUID().toString();
     }
 
     public HttpClient(String baseUrl) {
         this.baseUrl = baseUrl;
+        uid = UUID.randomUUID().toString();
     }
 
     public void setBaseUrl(String baseUrl) {
+        log.info("baseUrl for HttpClient: " + baseUrl);
         this.baseUrl = baseUrl;
     }
 
     public void setIgnoreSocks5Proxy(boolean ignoreSocks5Proxy) {
         this.ignoreSocks5Proxy = ignoreSocks5Proxy;
     }
-
 
     public String requestWithGET(String param, @Nullable String headerKey, @Nullable String headerValue) throws IOException, HttpException {
         checkNotNull(baseUrl, "baseUrl must be set before calling requestWithGET");
@@ -84,15 +89,14 @@ public class HttpClient {
      */
     public String requestWithGETNoProxy(String param, @Nullable String headerKey, @Nullable String headerValue) throws IOException, HttpException {
         HttpURLConnection connection = null;
+        log.debug("Executing HTTP request " + baseUrl + param + " proxy: none.");
+        URL url = new URL(baseUrl + param);
         try {
-            log.debug("Executing HTTP request " + baseUrl + param + " proxy: none.");
-            URL url = new URL(baseUrl + param);
             connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("GET");
             connection.setConnectTimeout(10_000);
             connection.setReadTimeout(10_000);
             connection.setRequestProperty("User-Agent", "Bitsquare/" + Version.VERSION);
-
             if (headerKey != null && headerValue != null)
                 connection.setRequestProperty(headerKey, headerValue);
 
@@ -104,13 +108,17 @@ public class HttpClient {
                 throw new HttpException(error);
             }
         } catch (Throwable t) {
-            log.debug("Error at requestWithGETNoProxy: " + t.getMessage());
-            throw new IOException(t);
+            throw new IOException("Error at requestWithGETNoProxy with URL: " + (baseUrl + param) + ". Throwable=" + t.getMessage());
         } finally {
             if (connection != null)
                 connection.getInputStream().close();
         }
     }
+
+    public String getUid() {
+        return uid;
+    }
+
 
     /**
      * Make an HTTP Get request routed over socks5 proxy.
@@ -149,8 +157,7 @@ public class HttpClient {
                 return convertInputStreamToString(response.getEntity().getContent());
             }
         } catch (Throwable t) {
-            log.debug("Error at requestWithGETProxy: " + t.getMessage());
-            throw new IOException(t);
+            throw new IOException("Error at requestWithGETProxy with URL: " + (baseUrl + param) + ". Throwable=" + t.getMessage());
         }
     }
 

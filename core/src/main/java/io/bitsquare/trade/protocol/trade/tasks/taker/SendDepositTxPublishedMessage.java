@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 public class SendDepositTxPublishedMessage extends TradeTask {
     private static final Logger log = LoggerFactory.getLogger(SendDepositTxPublishedMessage.class);
 
+    @SuppressWarnings({"WeakerAccess", "unused"})
     public SendDepositTxPublishedMessage(TaskRunner taskHandler, Trade trade) {
         super(taskHandler, trade);
     }
@@ -39,7 +40,7 @@ public class SendDepositTxPublishedMessage extends TradeTask {
             if (trade.getDepositTx() != null) {
                 DepositTxPublishedMessage tradeMessage = new DepositTxPublishedMessage(processModel.getId(),
                         trade.getDepositTx().bitcoinSerialize(),
-                        processModel.getMyAddress());
+                        processModel.getMyNodeAddress());
 
                 processModel.getP2PService().sendEncryptedMailboxMessage(
                         trade.getTradingPeerNodeAddress(),

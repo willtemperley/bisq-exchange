@@ -18,8 +18,8 @@
 package io.bitsquare.gui.main.offer.createoffer;
 
 import io.bitsquare.app.DevFlags;
-import io.bitsquare.btc.pricefeed.MarketPrice;
-import io.bitsquare.btc.pricefeed.PriceFeedService;
+import io.bitsquare.btc.provider.price.MarketPrice;
+import io.bitsquare.btc.provider.price.PriceFeedService;
 import io.bitsquare.common.Timer;
 import io.bitsquare.common.UserThread;
 import io.bitsquare.common.util.MathUtils;
@@ -36,6 +36,7 @@ import io.bitsquare.gui.main.overlays.popups.Popup;
 import io.bitsquare.gui.main.settings.SettingsView;
 import io.bitsquare.gui.main.settings.preferences.PreferencesView;
 import io.bitsquare.gui.util.BSFormatter;
+import io.bitsquare.gui.util.GUIUtil;
 import io.bitsquare.gui.util.validation.BtcValidator;
 import io.bitsquare.gui.util.validation.FiatValidator;
 import io.bitsquare.gui.util.validation.InputValidator;
@@ -125,6 +126,9 @@ class CreateOfferViewModel extends ActivatableWithDataModel<CreateOfferDataModel
     private boolean inputIsMarketBasedPrice;
     private ChangeListener<Boolean> useMarketBasedPriceListener;
     private boolean ignorePriceStringListener, ignoreVolumeStringListener, ignoreAmountStringListener;
+    private MarketPrice marketPrice;
+    final IntegerProperty marketPriceAvailableProperty = new SimpleIntegerProperty(-1);
+    private ChangeListener<Number> currenciesUpdateListener;
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -160,7 +164,10 @@ class CreateOfferViewModel extends ActivatableWithDataModel<CreateOfferDataModel
             UserThread.runAfter(() -> {
                 amount.set("1");
                 minAmount.set(amount.get());
-                price.set("1000");
+                UserThread.runAfter(() -> {
+                    price.set("1000");
+                    onFocusOutPriceAsPercentageTextField(true, false, "");
+                }, 1);
 
                 setAmountToModel();
                 setMinAmountToModel();
@@ -246,6 +253,10 @@ class CreateOfferViewModel extends ActivatableWithDataModel<CreateOfferDataModel
             updateButtonDisableState();
         };
         priceStringListener = (ov, oldValue, newValue) -> {
+            final String currencyCode = dataModel.tradeCurrencyCode.get();
+            marketPrice = priceFeedService.getMarketPrice(currencyCode);
+            marketPriceAvailableProperty.set(marketPrice == null ? 0 : 1);
+
             if (!ignorePriceStringListener) {
                 if (isPriceInputValid(newValue).isValid) {
                     setPriceToModel();
@@ -253,8 +264,6 @@ class CreateOfferViewModel extends ActivatableWithDataModel<CreateOfferDataModel
                     dataModel.calculateTotalToPay();
 
                     if (!inputIsMarketBasedPrice) {
-                        final String currencyCode = dataModel.tradeCurrencyCode.get();
-                        MarketPrice marketPrice = priceFeedService.getMarketPrice(currencyCode);
                         if (marketPrice != null) {
                             double marketPriceAsDouble = marketPrice.getPrice(getPriceFeedType());
                             try {
@@ -265,7 +274,10 @@ class CreateOfferViewModel extends ActivatableWithDataModel<CreateOfferDataModel
                                     percentage = dataModel.getDirection() == Offer.Direction.SELL ? 1 - relation : relation - 1;
                                 else
                                     percentage = dataModel.getDirection() == Offer.Direction.BUY ? 1 - relation : relation - 1;
+
                                 percentage = MathUtils.roundDouble(percentage, 4);
+                                dataModel.setMarketPriceMargin(percentage);
+                                dataModel.updateTradeFee();
                                 marketPriceMargin.set(formatter.formatToPercent(percentage));
                             } catch (NumberFormatException t) {
                                 marketPriceMargin.set("");
@@ -276,8 +288,8 @@ class CreateOfferViewModel extends ActivatableWithDataModel<CreateOfferDataModel
                         }
                     }
                 }
-                updateButtonDisableState();
             }
+            updateButtonDisableState();
         };
         marketPriceMarginStringListener = (ov, oldValue, newValue) -> {
             if (inputIsMarketBasedPrice) {
@@ -293,6 +305,7 @@ class CreateOfferViewModel extends ActivatableWithDataModel<CreateOfferDataModel
                             if (marketPrice != null) {
                                 percentage = MathUtils.roundDouble(percentage, 4);
                                 dataModel.setMarketPriceMargin(percentage);
+                                dataModel.updateTradeFee();
 
                                 double marketPriceAsDouble = marketPrice.getPrice(getPriceFeedType());
                                 double factor;
@@ -374,6 +387,13 @@ class CreateOfferViewModel extends ActivatableWithDataModel<CreateOfferDataModel
        /* feeFromFundingTxListener = (ov, oldValue, newValue) -> {
             updateButtonDisableState();
         };*/
+
+        currenciesUpdateListener = (observable, oldValue, newValue) -> {
+            final String currencyCode = dataModel.tradeCurrencyCode.get();
+            marketPrice = priceFeedService.getMarketPrice(currencyCode);
+            marketPriceAvailableProperty.set(marketPrice == null ? 0 : 1);
+            updateButtonDisableState();
+        };
     }
 
     private void addListeners() {
@@ -394,6 +414,8 @@ class CreateOfferViewModel extends ActivatableWithDataModel<CreateOfferDataModel
 
         // dataModel.feeFromFundingTxProperty.addListener(feeFromFundingTxListener);
         dataModel.isWalletFunded.addListener(isWalletFundedListener);
+
+        priceFeedService.currenciesUpdateFlagProperty().addListener(currenciesUpdateListener);
     }
 
     private void removeListeners() {
@@ -415,6 +437,8 @@ class CreateOfferViewModel extends ActivatableWithDataModel<CreateOfferDataModel
 
         if (offer != null && errorMessageListener != null)
             offer.errorMessageProperty().removeListener(errorMessageListener);
+
+        priceFeedService.currenciesUpdateFlagProperty().removeListener(currenciesUpdateListener);
     }
 
 
@@ -492,9 +516,14 @@ class CreateOfferViewModel extends ActivatableWithDataModel<CreateOfferDataModel
 
     public void onCurrencySelected(TradeCurrency tradeCurrency) {
         dataModel.onCurrencySelected(tradeCurrency);
+
+        marketPrice = priceFeedService.getMarketPrice(dataModel.tradeCurrencyCode.get());
+        marketPriceAvailableProperty.set(marketPrice == null ? 0 : 1);
+        updateButtonDisableState();
     }
 
     void onShowPayFundsScreen() {
+        dataModel.requestTxFee();
         showPayFundsScreenDisplayed.set(true);
         updateSpinnerInfo();
     }
@@ -659,16 +688,23 @@ class CreateOfferViewModel extends ActivatableWithDataModel<CreateOfferDataModel
         return dataModel.getTradeCurrency();
     }
 
-    public String getOfferFee() {
-        return formatter.formatCoinWithCode(dataModel.getOfferFeeAsCoin());
-    }
-
-    public String getNetworkFee() {
-        return formatter.formatCoinWithCode(dataModel.getNetworkFeeAsCoin());
+    public String getTradeAmount() {
+        return formatter.formatCoinWithCode(dataModel.amount.get());
     }
 
     public String getSecurityDeposit() {
-        return formatter.formatCoinWithCode(dataModel.getSecurityDepositAsCoin());
+        return formatter.formatCoinWithCode(dataModel.getSecurityDepositAsCoin()) +
+                GUIUtil.getPercentageOfTradeAmount(dataModel.getSecurityDepositAsCoin(), dataModel.amount.get(), formatter);
+    }
+
+    public String getCreateOfferFee() {
+        return formatter.formatCoinWithCode(dataModel.getCreateOfferFeeAsCoin()) +
+                GUIUtil.getPercentageOfTradeAmount(dataModel.getCreateOfferFeeAsCoin(), dataModel.amount.get(), formatter);
+    }
+
+    public String getTxFee() {
+        return formatter.formatCoinWithCode(dataModel.getTxFeeAsCoin()) +
+                GUIUtil.getPercentageOfTradeAmount(dataModel.getTxFeeAsCoin(), dataModel.amount.get(), formatter);
     }
 
     public PaymentAccount getPaymentAccount() {
@@ -715,14 +751,15 @@ class CreateOfferViewModel extends ActivatableWithDataModel<CreateOfferDataModel
 
     private void setAmountToModel() {
         if (amount.get() != null && !amount.get().isEmpty()) {
-            dataModel.amount.set(formatter.parseToCoinWith4Decimals(amount.get()));
+            dataModel.setAmount(formatter.parseToCoinWith4Decimals(amount.get()));
             if (dataModel.minAmount.get() == null || dataModel.minAmount.get().equals(Coin.ZERO)) {
                 minAmount.set(amount.get());
                 setMinAmountToModel();
             }
         } else {
-            dataModel.amount.set(null);
+            dataModel.setAmount(null);
         }
+        dataModel.updateTradeFee();
     }
 
     private void setMinAmountToModel() {

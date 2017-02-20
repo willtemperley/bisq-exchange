@@ -25,8 +25,8 @@ import io.bitsquare.app.Log;
 import io.bitsquare.app.Version;
 import io.bitsquare.arbitration.Arbitrator;
 import io.bitsquare.arbitration.ArbitratorManager;
-import io.bitsquare.btc.TradeWalletService;
-import io.bitsquare.btc.WalletService;
+import io.bitsquare.btc.wallet.BtcWalletService;
+import io.bitsquare.btc.wallet.TradeWalletService;
 import io.bitsquare.common.crypto.KeyRing;
 import io.bitsquare.common.taskrunner.Model;
 import io.bitsquare.crypto.DecryptedMsgWithPubKey;
@@ -154,6 +154,8 @@ public abstract class Trade implements Tradable, Model {
     private DecryptedMsgWithPubKey decryptedMsgWithPubKey;
     private Date takeOfferDate;
     private Coin tradeAmount;
+    private final Coin txFee;
+    private final Coin takeOfferFee;
     private long tradePrice;
     private NodeAddress tradingPeerNodeAddress;
     @Nullable
@@ -184,8 +186,10 @@ public abstract class Trade implements Tradable, Model {
     ///////////////////////////////////////////////////////////////////////////////////////////
 
     // offerer
-    protected Trade(Offer offer, Storage<? extends TradableList> storage) {
+    protected Trade(Offer offer, Coin txFee, Coin takeOfferFee, Storage<? extends TradableList> storage) {
         this.offer = offer;
+        this.txFee = txFee;
+        this.takeOfferFee = takeOfferFee;
         this.storage = storage;
         this.takeOfferDate = new Date();
 
@@ -199,10 +203,10 @@ public abstract class Trade implements Tradable, Model {
     }
 
     // taker
-    protected Trade(Offer offer, Coin tradeAmount, long tradePrice, NodeAddress tradingPeerNodeAddress,
+    protected Trade(Offer offer, Coin tradeAmount, Coin txFee, Coin takeOfferFee, long tradePrice, NodeAddress tradingPeerNodeAddress,
                     Storage<? extends TradableList> storage) {
 
-        this(offer, storage);
+        this(offer, txFee, takeOfferFee, storage);
         this.tradeAmount = tradeAmount;
         this.tradePrice = tradePrice;
         this.tradingPeerNodeAddress = tradingPeerNodeAddress;
@@ -224,7 +228,7 @@ public abstract class Trade implements Tradable, Model {
     }
 
     public void init(P2PService p2PService,
-                     WalletService walletService,
+                     BtcWalletService walletService,
                      TradeWalletService tradeWalletService,
                      ArbitratorManager arbitratorManager,
                      TradeManager tradeManager,
@@ -413,6 +417,7 @@ public abstract class Trade implements Tradable, Model {
             return null;
     }
 
+
     @Nullable
     public Date getMaxTradePeriodDate() {
         if (maxTradePeriodDate == null && takeOfferDate != null)
@@ -490,6 +495,15 @@ public abstract class Trade implements Tradable, Model {
     public Coin getTradeAmount() {
         return tradeAmount;
     }
+
+    public Coin getTxFee() {
+        return txFee;
+    }
+
+    public Coin getTakeOfferFee() {
+        return takeOfferFee;
+    }
+
 
     public void setLockTimeAsBlockHeight(long lockTimeAsBlockHeight) {
         this.lockTimeAsBlockHeight = lockTimeAsBlockHeight;
@@ -672,6 +686,8 @@ public abstract class Trade implements Tradable, Model {
                 "\n\tlockTimeAsBlockHeight=" + lockTimeAsBlockHeight +
                 "\n\tarbitratorNodeAddress=" + arbitratorNodeAddress +
                 "\n\ttakerPaymentAccountId='" + takerPaymentAccountId + '\'' +
+                "\n\ttxFee='" + txFee.toFriendlyString() + '\'' +
+                "\n\ttakeOfferFee='" + takeOfferFee.toFriendlyString() + '\'' +
                 "\n\terrorMessage='" + errorMessage + '\'' +
                 '}';
     }

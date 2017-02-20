@@ -8,7 +8,9 @@ import io.bitsquare.app.BitsquareEnvironment;
 import io.bitsquare.app.Log;
 import io.bitsquare.app.Version;
 import io.bitsquare.arbitration.ArbitratorManager;
-import io.bitsquare.btc.WalletService;
+import io.bitsquare.btc.wallet.BtcWalletService;
+import io.bitsquare.btc.wallet.SquWalletService;
+import io.bitsquare.btc.wallet.WalletsSetup;
 import io.bitsquare.common.CommonOptionKeys;
 import io.bitsquare.common.UserThread;
 import io.bitsquare.common.handlers.ResultHandler;
@@ -37,7 +39,7 @@ public class Headless {
     private final OpenOfferManager openOfferManager;
     private final HeadlessModule headlessModule;
 
-    private P2PService p2pService;
+    private final P2PService p2pService;
 
     public static void setEnvironment(Environment env) {
         Headless.env = env;
@@ -135,12 +137,14 @@ public class Headless {
                 injector.getInstance(ArbitratorManager.class).shutDown();
                 injector.getInstance(OpenOfferManager.class).shutDown(() -> {
                     injector.getInstance(P2PService.class).shutDown(() -> {
-                        injector.getInstance(WalletService.class).shutDownDone.addListener((ov, o, n) -> {
+                        injector.getInstance(WalletsSetup.class).shutDownDone.addListener((ov, o, n) -> {
                             headlessModule.close(injector);
                             log.debug("Graceful shutdown completed");
                             resultHandler.handleResult();
                         });
-                        injector.getInstance(WalletService.class).shutDown();
+                        injector.getInstance(WalletsSetup.class).shutDown();
+                        injector.getInstance(BtcWalletService.class).shutDown();
+                        injector.getInstance(SquWalletService.class).shutDown();
                     });
                 });
                 // we wait max 5 sec.

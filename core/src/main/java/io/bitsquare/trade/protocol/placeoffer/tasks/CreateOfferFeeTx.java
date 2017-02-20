@@ -19,13 +19,14 @@ package io.bitsquare.trade.protocol.placeoffer.tasks;
 
 import io.bitsquare.arbitration.Arbitrator;
 import io.bitsquare.btc.AddressEntry;
-import io.bitsquare.btc.FeePolicy;
-import io.bitsquare.btc.WalletService;
+import io.bitsquare.btc.wallet.BtcWalletService;
 import io.bitsquare.common.taskrunner.Task;
 import io.bitsquare.common.taskrunner.TaskRunner;
 import io.bitsquare.p2p.NodeAddress;
+import io.bitsquare.trade.offer.Offer;
 import io.bitsquare.trade.protocol.placeoffer.PlaceOfferModel;
 import io.bitsquare.trade.protocol.trade.ArbitrationSelectionRule;
+import org.bitcoinj.core.Address;
 import org.bitcoinj.core.Transaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,12 +36,14 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class CreateOfferFeeTx extends Task<PlaceOfferModel> {
     private static final Logger log = LoggerFactory.getLogger(CreateOfferFeeTx.class);
 
+    @SuppressWarnings({"WeakerAccess", "unused"})
     public CreateOfferFeeTx(TaskRunner taskHandler, PlaceOfferModel model) {
         super(taskHandler, model);
     }
 
     @Override
     protected void run() {
+        Offer offer = model.offer;
         try {
             runInterceptHook();
 
@@ -48,26 +51,30 @@ public class CreateOfferFeeTx extends Task<PlaceOfferModel> {
             log.debug("selectedArbitratorAddress " + selectedArbitratorNodeAddress);
             Arbitrator selectedArbitrator = model.user.getAcceptedArbitratorByAddress(selectedArbitratorNodeAddress);
             checkNotNull(selectedArbitrator, "selectedArbitrator must not be null at CreateOfferFeeTx");
-            WalletService walletService = model.walletService;
-            String id = model.offer.getId();
+            BtcWalletService walletService = model.walletService;
+            String id = offer.getId();
+            Address fundingAddress = walletService.getOrCreateAddressEntry(id, AddressEntry.Context.OFFER_FUNDING).getAddress();
+            Address reservedForTradeAddress = walletService.getOrCreateAddressEntry(id, AddressEntry.Context.RESERVED_FOR_TRADE).getAddress();
+            Address changeAddress = walletService.getOrCreateAddressEntry(AddressEntry.Context.AVAILABLE).getAddress();
             Transaction transaction = model.tradeWalletService.createTradingFeeTx(
-                    walletService.getOrCreateAddressEntry(id, AddressEntry.Context.OFFER_FUNDING).getAddress(),
-                    walletService.getOrCreateAddressEntry(id, AddressEntry.Context.RESERVED_FOR_TRADE).getAddress(),
-                    walletService.getOrCreateAddressEntry(AddressEntry.Context.AVAILABLE).getAddress(),
+                    fundingAddress,
+                    reservedForTradeAddress,
+                    changeAddress,
                     model.reservedFundsForOffer,
                     model.useSavingsWallet,
-                    FeePolicy.getCreateOfferFee(),
+                    offer.getCreateOfferFee(),
+                    offer.getTxFee(),
                     selectedArbitrator.getBtcAddress());
 
             // We assume there will be no tx malleability. We add a check later in case the published offer has a different hash.
             // As the txId is part of the offer and therefore change the hash data we need to be sure to have no
             // tx malleability
-            model.offer.setOfferFeePaymentTxID(transaction.getHashAsString());
+            offer.setOfferFeePaymentTxID(transaction.getHashAsString());
             model.setTransaction(transaction);
 
             complete();
         } catch (Throwable t) {
-            model.offer.setErrorMessage("An error occurred.\n" +
+            offer.setErrorMessage("An error occurred.\n" +
                     "Error message:\n"
                     + t.getMessage());
             failed(t);

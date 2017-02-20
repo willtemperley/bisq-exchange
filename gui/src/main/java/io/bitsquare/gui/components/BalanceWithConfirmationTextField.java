@@ -17,9 +17,9 @@
 
 package io.bitsquare.gui.components;
 
-import io.bitsquare.btc.WalletService;
 import io.bitsquare.btc.listeners.AddressConfidenceListener;
 import io.bitsquare.btc.listeners.BalanceListener;
+import io.bitsquare.btc.wallet.BtcWalletService;
 import io.bitsquare.gui.components.indicator.TxConfidenceIndicator;
 import io.bitsquare.gui.util.BSFormatter;
 import javafx.scene.control.TextField;
@@ -36,11 +36,11 @@ import org.bitcoinj.core.TransactionConfidence;
 
 public class BalanceWithConfirmationTextField extends AnchorPane {
 
-    private static WalletService walletService;
+    private static BtcWalletService walletService;
     private BalanceListener balanceListener;
     private AddressConfidenceListener confidenceListener;
 
-    public static void setWalletService(WalletService walletService) {
+    public static void setWalletService(BtcWalletService walletService) {
         BalanceWithConfirmationTextField.walletService = walletService;
     }
 

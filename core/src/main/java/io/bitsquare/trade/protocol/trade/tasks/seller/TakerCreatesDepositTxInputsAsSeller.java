@@ -18,19 +18,21 @@
 package io.bitsquare.trade.protocol.trade.tasks.seller;
 
 import io.bitsquare.btc.AddressEntry;
-import io.bitsquare.btc.FeePolicy;
 import io.bitsquare.btc.data.InputsAndChangeOutput;
+import io.bitsquare.btc.wallet.BtcWalletService;
 import io.bitsquare.common.taskrunner.TaskRunner;
 import io.bitsquare.trade.Trade;
-import io.bitsquare.trade.offer.Offer;
 import io.bitsquare.trade.protocol.trade.tasks.TradeTask;
+import org.bitcoinj.core.Address;
 import org.bitcoinj.core.Coin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TakerCreatesDepositTxInputsAsSeller extends TradeTask {
+    @SuppressWarnings("unused")
     private static final Logger log = LoggerFactory.getLogger(TakerCreatesDepositTxInputsAsSeller.class);
 
+    @SuppressWarnings({"WeakerAccess", "unused"})
     public TakerCreatesDepositTxInputsAsSeller(TaskRunner taskHandler, Trade trade) {
         super(taskHandler, trade);
     }
@@ -40,12 +42,19 @@ public class TakerCreatesDepositTxInputsAsSeller extends TradeTask {
         try {
             runInterceptHook();
             if (trade.getTradeAmount() != null) {
-                Offer offer = trade.getOffer();
-                Coin takerInputAmount = FeePolicy.getSecurityDeposit(offer).add(FeePolicy.getFixedTxFeeForTrades(offer)).add(trade.getTradeAmount());
+                Coin txFee = trade.getTxFee();
+                Coin doubleTxFee = txFee.add(txFee);
+                Coin takerInputAmount = trade.getOffer().getSecurityDeposit().add(doubleTxFee).add(trade.getTradeAmount());
 
-                InputsAndChangeOutput result = processModel.getTradeWalletService().takerCreatesDepositsTxInputs(takerInputAmount,
-                        processModel.getWalletService().getOrCreateAddressEntry(processModel.getOffer().getId(), AddressEntry.Context.RESERVED_FOR_TRADE),
-                        processModel.getWalletService().getOrCreateAddressEntry(AddressEntry.Context.AVAILABLE).getAddress());
+                BtcWalletService walletService = processModel.getWalletService();
+                Address takersAddress = walletService.getOrCreateAddressEntry(processModel.getOffer().getId(), AddressEntry.Context.RESERVED_FOR_TRADE).getAddress();
+                Address takersChangeAddress = walletService.getOrCreateAddressEntry(AddressEntry.Context.AVAILABLE).getAddress();
+                InputsAndChangeOutput result = processModel.getTradeWalletService().takerCreatesDepositsTxInputs(
+                        takerInputAmount,
+                        txFee,
+                        takersAddress,
+                        takersChangeAddress);
+                
                 processModel.setRawTransactionInputs(result.rawTransactionInputs);
                 processModel.setChangeOutputValue(result.changeOutputValue);
                 processModel.setChangeOutputAddress(result.changeOutputAddress);

@@ -18,6 +18,7 @@
 package io.bitsquare.trade.protocol.trade.tasks.seller;
 
 import io.bitsquare.btc.AddressEntry;
+import io.bitsquare.btc.wallet.BtcWalletService;
 import io.bitsquare.common.taskrunner.TaskRunner;
 import io.bitsquare.p2p.messaging.SendMailboxMessageListener;
 import io.bitsquare.trade.Trade;
@@ -29,6 +30,7 @@ import org.slf4j.LoggerFactory;
 public class SendFinalizePayoutTxRequest extends TradeTask {
     private static final Logger log = LoggerFactory.getLogger(SendFinalizePayoutTxRequest.class);
 
+    @SuppressWarnings({"WeakerAccess", "unused"})
     public SendFinalizePayoutTxRequest(TaskRunner taskHandler, Trade trade) {
         super(taskHandler, trade);
     }
@@ -38,12 +40,14 @@ public class SendFinalizePayoutTxRequest extends TradeTask {
         try {
             runInterceptHook();
             if (trade.getTradingPeerNodeAddress() != null) {
+                BtcWalletService walletService = processModel.getWalletService();
+                String sellerPayoutAddress = walletService.getOrCreateAddressEntry(processModel.getOffer().getId(), AddressEntry.Context.TRADE_PAYOUT).getAddressString();
                 FinalizePayoutTxRequest message = new FinalizePayoutTxRequest(
                         processModel.getId(),
                         processModel.getPayoutTxSignature(),
-                        processModel.getWalletService().getOrCreateAddressEntry(processModel.getOffer().getId(), AddressEntry.Context.TRADE_PAYOUT).getAddressString(),
+                        sellerPayoutAddress,
                         trade.getLockTimeAsBlockHeight(),
-                        processModel.getMyAddress()
+                        processModel.getMyNodeAddress()
                 );
 
                 processModel.getP2PService().sendEncryptedMailboxMessage(

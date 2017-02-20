@@ -18,12 +18,13 @@
 package io.bitsquare.gui.main.market.spread;
 
 import com.google.inject.Inject;
-import io.bitsquare.btc.pricefeed.MarketPrice;
-import io.bitsquare.btc.pricefeed.PriceFeedService;
+import io.bitsquare.btc.provider.price.MarketPrice;
+import io.bitsquare.btc.provider.price.PriceFeedService;
 import io.bitsquare.gui.common.model.ActivatableViewModel;
 import io.bitsquare.gui.main.offer.offerbook.OfferBook;
 import io.bitsquare.gui.main.offer.offerbook.OfferBookListItem;
 import io.bitsquare.gui.util.BSFormatter;
+import io.bitsquare.locale.CurrencyUtil;
 import io.bitsquare.trade.offer.Offer;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -110,17 +111,23 @@ class SpreadViewModel extends ActivatableViewModel {
                     .collect(Collectors.toList());
 
             Fiat spread = null;
+            String percentage = "";
             Fiat bestSellOfferPrice = sellOffers.isEmpty() ? null : sellOffers.get(0).getPrice();
             Fiat bestBuyOfferPrice = buyOffers.isEmpty() ? null : buyOffers.get(0).getPrice();
-            if (bestBuyOfferPrice != null && bestSellOfferPrice != null)
+            if (bestBuyOfferPrice != null && bestSellOfferPrice != null) {
+                MarketPrice marketPrice = priceFeedService.getMarketPrice(currencyCode);
                 spread = bestSellOfferPrice.subtract(bestBuyOfferPrice);
-
-            String percentage = "";
-            MarketPrice marketPrice = priceFeedService.getMarketPrice(currencyCode);
-            if (spread != null && marketPrice != null) {
-                double marketPriceAsDouble = marketPrice.getPrice(PriceFeedService.Type.LAST);
-                double result = ((double) spread.value / 10000) / marketPriceAsDouble;
-                percentage = " (" + formatter.formatPercentagePrice(result) + ")";
+                if (spread != null && marketPrice != null) {
+                    double marketPriceAsDouble = marketPrice.getPrice(PriceFeedService.Type.LAST);
+                    if (CurrencyUtil.isFiatCurrency(currencyCode)) {
+                        double result = ((double) spread.value / 10000D) / marketPriceAsDouble;
+                        percentage = " (" + formatter.formatPercentagePrice(result) + ")";
+                    } else {
+                        final double spreadAsDouble = spread.value != 0 ? 10000D / spread.value : 0;
+                        double result = marketPriceAsDouble / spreadAsDouble;
+                        percentage = " (" + formatter.formatPercentagePrice(result) + ")";
+                    }
+                }
             }
 
             Coin totalAmount = Coin.valueOf(offers.stream().mapToLong(offer -> offer.getAmount().getValue()).sum());

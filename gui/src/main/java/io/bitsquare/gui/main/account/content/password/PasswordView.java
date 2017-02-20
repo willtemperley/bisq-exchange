@@ -17,8 +17,7 @@
 
 package io.bitsquare.gui.main.account.content.password;
 
-import io.bitsquare.btc.TradeWalletService;
-import io.bitsquare.btc.WalletService;
+import io.bitsquare.btc.wallet.WalletsManager;
 import io.bitsquare.common.util.Tuple2;
 import io.bitsquare.common.util.Tuple3;
 import io.bitsquare.crypto.ScryptUtil;
@@ -35,7 +34,6 @@ import javafx.beans.value.ChangeListener;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.GridPane;
-import org.bitcoinj.core.Wallet;
 import org.bitcoinj.crypto.KeyCrypterScrypt;
 
 import javax.inject.Inject;
@@ -46,9 +44,8 @@ import static io.bitsquare.gui.util.FormBuilder.*;
 @FxmlView
 public class PasswordView extends ActivatableView<GridPane, Void> {
 
+    private final WalletsManager walletsManager;
     private final PasswordValidator passwordValidator;
-    private final WalletService walletService;
-    private final TradeWalletService tradeWalletService;
 
     private PasswordTextField passwordField;
     private PasswordTextField repeatedPasswordField;
@@ -65,10 +62,9 @@ public class PasswordView extends ActivatableView<GridPane, Void> {
     ///////////////////////////////////////////////////////////////////////////////////////////
 
     @Inject
-    private PasswordView(PasswordValidator passwordValidator, WalletService walletService, TradeWalletService tradeWalletService) {
+    private PasswordView(WalletsManager walletsManager, PasswordValidator passwordValidator) {
+        this.walletsManager = walletsManager;
         this.passwordValidator = passwordValidator;
-        this.walletService = walletService;
-        this.tradeWalletService = tradeWalletService;
     }
 
     @Override
@@ -100,27 +96,20 @@ public class PasswordView extends ActivatableView<GridPane, Void> {
             deriveStatusLabel.setText("Derive key from password");
             busyAnimation.play();
 
-            KeyCrypterScrypt keyCrypterScrypt;
-            Wallet wallet = walletService.getWallet();
-            if (wallet.isEncrypted())
-                keyCrypterScrypt = (KeyCrypterScrypt) wallet.getKeyCrypter();
-            else
-                keyCrypterScrypt = ScryptUtil.getKeyCrypterScrypt();
-
+            KeyCrypterScrypt keyCrypterScrypt = walletsManager.getKeyCrypterScrypt();
             ScryptUtil.deriveKeyWithScrypt(keyCrypterScrypt, password, aesKey -> {
                 deriveStatusLabel.setText("");
                 busyAnimation.stop();
 
-                if (wallet.isEncrypted()) {
-                    if (wallet.checkAESKey(aesKey)) {
-                        walletService.decryptWallet(aesKey);
-                        tradeWalletService.setAesKey(null);
+                if (walletsManager.areWalletsEncrypted()) {
+                    if (walletsManager.checkAESKey(aesKey)) {
+                        walletsManager.decryptWallets(aesKey);
                         new Popup()
                                 .feedback("Wallet successfully decrypted and password protection removed.")
                                 .show();
                         passwordField.setText("");
                         repeatedPasswordField.setText("");
-                        walletService.backupWallet();
+                        walletsManager.backupWallets();
                     } else {
                         pwButton.setDisable(false);
                         new Popup()
@@ -129,16 +118,14 @@ public class PasswordView extends ActivatableView<GridPane, Void> {
                                 .show();
                     }
                 } else {
-                    // we save the key for the trade wallet as we don't require passwords here
-                    walletService.encryptWallet(keyCrypterScrypt, aesKey);
-                    tradeWalletService.setAesKey(aesKey);
+                    walletsManager.encryptWallets(keyCrypterScrypt, aesKey);
                     new Popup()
                             .feedback("Wallet successfully encrypted and password protection enabled.")
                             .show();
                     passwordField.setText("");
                     repeatedPasswordField.setText("");
-                    walletService.clearBackup();
-                    walletService.backupWallet();
+                    walletsManager.clearBackup();
+                    walletsManager.backupWallets();
                 }
                 setText();
             });
@@ -153,7 +140,7 @@ public class PasswordView extends ActivatableView<GridPane, Void> {
     }
 
     private void setText() {
-        if (walletService.getWallet().isEncrypted()) {
+        if (walletsManager.areWalletsEncrypted()) {
             pwButton.setText("Remove password");
             headline.setText("Remove password protection for wallet");
             repeatedPasswordField.setVisible(false);
@@ -188,7 +175,7 @@ public class PasswordView extends ActivatableView<GridPane, Void> {
         passwordValidator.setExternalValidationResult(null);
         InputValidator.ValidationResult result = passwordValidator.validate(passwordField.getText());
         if (result.isValid) {
-            if (walletService.getWallet().isEncrypted()) {
+            if (walletsManager.areWalletsEncrypted()) {
                 pwButton.setDisable(false);
                 return;
             } else {

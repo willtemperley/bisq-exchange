@@ -22,9 +22,9 @@ import io.bitsquare.app.Log;
 import io.bitsquare.arbitration.Arbitrator;
 import io.bitsquare.arbitration.Dispute;
 import io.bitsquare.arbitration.DisputeManager;
-import io.bitsquare.btc.FeePolicy;
-import io.bitsquare.btc.TradeWalletService;
-import io.bitsquare.btc.WalletService;
+import io.bitsquare.btc.provider.fee.FeeService;
+import io.bitsquare.btc.wallet.BtcWalletService;
+import io.bitsquare.btc.wallet.TradeWalletService;
 import io.bitsquare.common.crypto.KeyRing;
 import io.bitsquare.common.handlers.ErrorMessageHandler;
 import io.bitsquare.common.handlers.FaultHandler;
@@ -68,12 +68,13 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 public class PendingTradesDataModel extends ActivatableDataModel {
     public final TradeManager tradeManager;
-    public final WalletService walletService;
+    public final BtcWalletService btcWalletService;
     private final TradeWalletService tradeWalletService;
+    private final FeeService feeService;
     private final User user;
     private final KeyRing keyRing;
     public final DisputeManager disputeManager;
-    private P2PService p2PService;
+    private final P2PService p2PService;
     public final Navigation navigation;
     public final WalletPasswordWindow walletPasswordWindow;
     private final NotificationCenter notificationCenter;
@@ -93,12 +94,13 @@ public class PendingTradesDataModel extends ActivatableDataModel {
     ///////////////////////////////////////////////////////////////////////////////////////////
 
     @Inject
-    public PendingTradesDataModel(TradeManager tradeManager, WalletService walletService, TradeWalletService tradeWalletService,
+    public PendingTradesDataModel(TradeManager tradeManager, BtcWalletService btcWalletService, TradeWalletService tradeWalletService, FeeService feeService,
                                   User user, KeyRing keyRing, DisputeManager disputeManager, Preferences preferences, P2PService p2PService,
                                   Navigation navigation, WalletPasswordWindow walletPasswordWindow, NotificationCenter notificationCenter) {
         this.tradeManager = tradeManager;
-        this.walletService = walletService;
+        this.btcWalletService = btcWalletService;
         this.tradeWalletService = tradeWalletService;
+        this.feeService = feeService;
         this.user = user;
         this.keyRing = keyRing;
         this.disputeManager = disputeManager;
@@ -152,13 +154,14 @@ public class PendingTradesDataModel extends ActivatableDataModel {
             ((SellerTrade) getTrade()).onFiatPaymentReceived(resultHandler, errorMessageHandler);
     }
 
-    public void onWithdrawRequest(String toAddress, Coin receiverAmount, KeyParameter aesKey, ResultHandler resultHandler, FaultHandler faultHandler) {
+    public void onWithdrawRequest(String toAddress, Coin amount, Coin fee, KeyParameter aesKey, ResultHandler resultHandler, FaultHandler faultHandler) {
         checkNotNull(getTrade(), "trade must not be null");
 
         if (toAddress != null && toAddress.length() > 0) {
             tradeManager.onWithdrawRequest(
                     toAddress,
-                    receiverAmount,
+                    amount,
+                    fee,
                     aesKey,
                     getTrade(),
                     () -> {
@@ -210,12 +213,23 @@ public class PendingTradesDataModel extends ActivatableDataModel {
         return tradeManager.isMyOffer(offer);
     }
 
-    boolean isOfferer() {
+    private boolean isOfferer() {
         return isOfferer;
     }
 
     Coin getTotalFees() {
-        return FeePolicy.getFixedTxFeeForTrades(getOffer()).add(isOfferer() ? FeePolicy.getCreateOfferFee() : FeePolicy.getTakeOfferFee());
+        Trade trade = getTrade();
+        if (trade != null) {
+            if (isOfferer()) {
+                Offer offer = trade.getOffer();
+                return offer.getCreateOfferFee().add(offer.getTxFee());
+            } else {
+                return trade.getTakeOfferFee().add(trade.getTxFee().multiply(3));
+            }
+        } else {
+            log.error("Trade is null at getTotalFees");
+            return Coin.ZERO;
+        }
     }
 
     public String getCurrencyCode() {
@@ -308,14 +322,14 @@ public class PendingTradesDataModel extends ActivatableDataModel {
             } else {
                 log.info("Trade.depositTx is null. We try to find the tx in our wallet.");
                 List<Transaction> candidates = new ArrayList<>();
-                List<Transaction> transactions = walletService.getWallet().getRecentTransactions(100, true);
+                List<Transaction> transactions = btcWalletService.getRecentTransactions(100, true);
                 transactions.stream().forEach(transaction -> {
-                    Coin valueSentFromMe = transaction.getValueSentFromMe(walletService.getWallet());
+                    Coin valueSentFromMe = btcWalletService.getValueSentFromMeForTransaction(transaction);
                     if (!valueSentFromMe.isZero()) {
                         // spending tx
                         // MS tx
                         candidates.addAll(transaction.getOutputs().stream()
-                                .filter(transactionOutput -> !transactionOutput.isMine(walletService.getWallet()))
+                                .filter(transactionOutput -> !btcWalletService.isTransactionOutputMine(transactionOutput))
                                 .filter(transactionOutput -> transactionOutput.getScriptPubKey().isPayToScriptHash())
                                 .map(transactionOutput -> transaction)
                                 .collect(Collectors.toList()));

@@ -18,8 +18,8 @@
 package io.bitsquare.trade.protocol.trade.tasks.offerer;
 
 import io.bitsquare.btc.AddressEntry;
-import io.bitsquare.btc.WalletService;
 import io.bitsquare.btc.listeners.BalanceListener;
+import io.bitsquare.btc.wallet.BtcWalletService;
 import io.bitsquare.common.UserThread;
 import io.bitsquare.common.taskrunner.TaskRunner;
 import io.bitsquare.trade.OffererTrade;
@@ -42,6 +42,7 @@ public class SetupDepositBalanceListener extends TradeTask {
     private Subscription tradeStateSubscription;
     private BalanceListener balanceListener;
 
+    @SuppressWarnings({"WeakerAccess", "unused"})
     public SetupDepositBalanceListener(TaskRunner taskHandler, Trade trade) {
         super(taskHandler, trade);
     }
@@ -51,7 +52,7 @@ public class SetupDepositBalanceListener extends TradeTask {
         try {
             runInterceptHook();
 
-            WalletService walletService = processModel.getWalletService();
+            BtcWalletService walletService = processModel.getWalletService();
             Address address = walletService.getOrCreateAddressEntry(trade.getId(), AddressEntry.Context.RESERVED_FOR_TRADE).getAddress();
             balanceListener = new BalanceListener(address) {
                 @Override

@@ -20,8 +20,7 @@ package io.bitsquare.gui.main.funds.transactions;
 import com.googlecode.jcsv.writer.CSVEntryConverter;
 import de.jensd.fx.fontawesome.AwesomeIcon;
 import io.bitsquare.arbitration.DisputeManager;
-import io.bitsquare.btc.FeePolicy;
-import io.bitsquare.btc.WalletService;
+import io.bitsquare.btc.wallet.BtcWalletService;
 import io.bitsquare.common.util.Tuple2;
 import io.bitsquare.common.util.Tuple4;
 import io.bitsquare.common.util.Utilities;
@@ -80,7 +79,7 @@ public class TransactionsView extends ActivatableView<VBox, Void> {
     private final ObservableList<TransactionsListItem> observableList = FXCollections.observableArrayList();
     private final SortedList<TransactionsListItem> sortedList = new SortedList<>(observableList);
 
-    private final WalletService walletService;
+    private final BtcWalletService walletService;
     private final TradeManager tradeManager;
     private final OpenOfferManager openOfferManager;
     private final ClosedTradableManager closedTradableManager;
@@ -89,7 +88,7 @@ public class TransactionsView extends ActivatableView<VBox, Void> {
     private final Preferences preferences;
     private final TradeDetailsWindow tradeDetailsWindow;
     private final DisputeManager disputeManager;
-    private Stage stage;
+    private final Stage stage;
     private final OfferDetailsWindow offerDetailsWindow;
     private WalletEventListener walletEventListener;
     private EventHandler<KeyEvent> keyEventEventHandler;
@@ -100,7 +99,7 @@ public class TransactionsView extends ActivatableView<VBox, Void> {
     ///////////////////////////////////////////////////////////////////////////////////////////
 
     @Inject
-    private TransactionsView(WalletService walletService, TradeManager tradeManager, OpenOfferManager openOfferManager,
+    private TransactionsView(BtcWalletService walletService, TradeManager tradeManager, OpenOfferManager openOfferManager,
                              ClosedTradableManager closedTradableManager, FailedTradesManager failedTradesManager,
                              BSFormatter formatter, Preferences preferences, TradeDetailsWindow tradeDetailsWindow,
                              DisputeManager disputeManager, Stage stage,
@@ -199,7 +198,7 @@ public class TransactionsView extends ActivatableView<VBox, Void> {
         tableView.setItems(sortedList);
         updateList();
 
-        walletService.getWallet().addEventListener(walletEventListener);
+        walletService.addEventListener(walletEventListener);
 
         scene = root.getScene();
         if (scene != null)
@@ -234,7 +233,7 @@ public class TransactionsView extends ActivatableView<VBox, Void> {
     protected void deactivate() {
         sortedList.comparatorProperty().unbind();
         observableList.forEach(TransactionsListItem::cleanup);
-        walletService.getWallet().removeEventListener(walletEventListener);
+        walletService.removeEventListener(walletEventListener);
 
         if (scene != null)
             scene.removeEventHandler(KeyEvent.KEY_RELEASED, keyEventEventHandler);
@@ -253,7 +252,7 @@ public class TransactionsView extends ActivatableView<VBox, Void> {
         Stream<Tradable> concat3 = Stream.concat(concat2, failedTradesManager.getFailedTrades().stream());
         Set<Tradable> all = concat3.collect(Collectors.toSet());
 
-        Set<Transaction> transactions = walletService.getWallet().getTransactions(true);
+        Set<Transaction> transactions = walletService.getTransactions(true);
         List<TransactionsListItem> transactionsListItems = transactions.stream()
                 .map(transaction -> {
                     Optional<Tradable> tradableOptional = all.stream()
@@ -565,9 +564,7 @@ public class TransactionsView extends ActivatableView<VBox, Void> {
                     walletService.swapAnyTradeEntryContextToAvailableEntry(tradable.getId());
 
                 new Popup().information("Transaction successfully sent to a new address in the local Bitsquare wallet.").show();
-            }, errorMessage -> {
-                new Popup().warning(errorMessage).show();
-            });
+            }, errorMessage -> new Popup().warning(errorMessage).show());
         } catch (Throwable e) {
             new Popup().warning(e.getMessage()).show();
         }
@@ -591,12 +588,17 @@ public class TransactionsView extends ActivatableView<VBox, Void> {
             DateFormat dateFormatter = DateFormat.getDateInstance(DateFormat.DEFAULT, Locale.US);
             String day = dateFormatter.format(item.getDate());
 
+            // TODO fee is dynamic now
+            Coin txFee = Coin.valueOf(20_000);
+            Coin createOfferFee = Coin.valueOf(50_000);
+            Coin takeOfferFee = Coin.valueOf(100_000);
+
             if (!dataByDayMap.containsKey(day)) {
                 int numOffers = 0;
                 int numTrades = 0;
-                if (amountAsCoin.compareTo(FeePolicy.getCreateOfferFee().subtract(FeePolicy.getFixedTxFeeForTrades())) == 0)
+                if (amountAsCoin.compareTo(createOfferFee.subtract(txFee)) == 0)
                     numOffers++;
-                else if (amountAsCoin.compareTo(FeePolicy.getTakeOfferFee().subtract(FeePolicy.getFixedTxFeeForTrades())) == 0)
+                else if (amountAsCoin.compareTo(takeOfferFee.subtract(txFee)) == 0)
                     numTrades++;
 
                 dataByDayMap.put(day, new Tuple4<>(item.getDate(), 1, numOffers, numTrades));
@@ -605,9 +607,9 @@ public class TransactionsView extends ActivatableView<VBox, Void> {
                 int prev = tuple.second;
                 int numOffers = tuple.third;
                 int numTrades = tuple.forth;
-                if (amountAsCoin.compareTo(FeePolicy.getCreateOfferFee().subtract(FeePolicy.getFixedTxFeeForTrades())) == 0)
+                if (amountAsCoin.compareTo(createOfferFee.subtract(txFee)) == 0)
                     numOffers++;
-                else if (amountAsCoin.compareTo(FeePolicy.getTakeOfferFee().subtract(FeePolicy.getFixedTxFeeForTrades())) == 0)
+                else if (amountAsCoin.compareTo(takeOfferFee.subtract(txFee)) == 0)
                     numTrades++;
 
                 dataByDayMap.put(day, new Tuple4<>(tuple.first, ++prev, numOffers, numTrades));

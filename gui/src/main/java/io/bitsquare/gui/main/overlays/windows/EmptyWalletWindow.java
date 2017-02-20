@@ -19,7 +19,7 @@ package io.bitsquare.gui.main.overlays.windows;
 
 import io.bitsquare.app.DevFlags;
 import io.bitsquare.btc.Restrictions;
-import io.bitsquare.btc.WalletService;
+import io.bitsquare.btc.wallet.WalletService;
 import io.bitsquare.common.UserThread;
 import io.bitsquare.common.util.Tuple2;
 import io.bitsquare.gui.components.InputTextField;
@@ -50,13 +50,14 @@ import static io.bitsquare.gui.util.FormBuilder.*;
 
 public class EmptyWalletWindow extends Overlay<EmptyWalletWindow> {
     private static final Logger log = LoggerFactory.getLogger(EmptyWalletWindow.class);
-    private final WalletService walletService;
     private final WalletPasswordWindow walletPasswordWindow;
-    private OpenOfferManager openOfferManager;
     private final BSFormatter formatter;
+    private final OpenOfferManager openOfferManager;
+    
     private Button emptyWalletButton;
     private InputTextField addressInputTextField;
     private TextField balanceTextField;
+    private WalletService walletService;
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -64,9 +65,8 @@ public class EmptyWalletWindow extends Overlay<EmptyWalletWindow> {
     ///////////////////////////////////////////////////////////////////////////////////////////
 
     @Inject
-    public EmptyWalletWindow(WalletService walletService, WalletPasswordWindow walletPasswordWindow,
+    public EmptyWalletWindow(WalletPasswordWindow walletPasswordWindow,
                              OpenOfferManager openOfferManager, BSFormatter formatter) {
-        this.walletService = walletService;
         this.walletPasswordWindow = walletPasswordWindow;
         this.openOfferManager = openOfferManager;
         this.formatter = formatter;
@@ -119,7 +119,7 @@ public class EmptyWalletWindow extends Overlay<EmptyWalletWindow> {
         Tuple2<Label, InputTextField> tuple = addLabelInputTextField(gridPane, ++rowIndex, "Your destination address:");
         addressInputTextField = tuple.second;
         if (DevFlags.DEV_MODE)
-            addressInputTextField.setText("mjYhQYSbET2bXJDyCdNqYhqSye5QX2WHPz");
+            addressInputTextField.setText("mpaZiEh8gSr4LcH11FrLdRY57aArt88qtg");
 
         emptyWalletButton = new Button("Empty wallet");
         boolean isBalanceSufficient = Restrictions.isAboveDust(totalBalance);
@@ -127,7 +127,7 @@ public class EmptyWalletWindow extends Overlay<EmptyWalletWindow> {
         emptyWalletButton.setDisable(!isBalanceSufficient && addressInputTextField.getText().length() > 0);
         emptyWalletButton.setOnAction(e -> {
             if (addressInputTextField.getText().length() > 0 && isBalanceSufficient) {
-                if (walletService.getWallet().isEncrypted()) {
+                if (walletService.isEncrypted()) {
                     walletPasswordWindow
                             .onAesKey(this::doEmptyWallet)
                             .onClose(this::blurAgain)
@@ -160,9 +160,7 @@ public class EmptyWalletWindow extends Overlay<EmptyWalletWindow> {
                     new Popup().warning("You have open offers which will be removed if you empty the wallet.\n" +
                             "Are you sure that you want to empty your wallet?")
                             .actionButtonText("Yes, I am sure")
-                            .onAction(() -> {
-                                doEmptyWallet2(aesKey);
-                            })
+                            .onAction(() -> doEmptyWallet2(aesKey))
                             .show(), 300, TimeUnit.MILLISECONDS);
         } else {
             doEmptyWallet2(aesKey);
@@ -195,5 +193,9 @@ public class EmptyWalletWindow extends Overlay<EmptyWalletWindow> {
                 emptyWalletButton.setDisable(false);
             }
         });
+    }
+
+    public void setwalletService(WalletService walletService) {
+        this.walletService = walletService;
     }
 }

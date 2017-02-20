@@ -18,20 +18,25 @@
 package io.bitsquare.trade.protocol.trade.tasks.seller;
 
 import io.bitsquare.btc.AddressEntry;
-import io.bitsquare.btc.FeePolicy;
-import io.bitsquare.btc.WalletService;
+import io.bitsquare.btc.wallet.BtcWalletService;
 import io.bitsquare.common.taskrunner.TaskRunner;
 import io.bitsquare.trade.Trade;
 import io.bitsquare.trade.protocol.trade.tasks.TradeTask;
 import org.bitcoinj.core.Coin;
+import org.bitcoinj.crypto.DeterministicKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
+
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 public class SignPayoutTx extends TradeTask {
+    @SuppressWarnings("unused")
     private static final Logger log = LoggerFactory.getLogger(SignPayoutTx.class);
 
+    @SuppressWarnings({"WeakerAccess", "unused"})
     public SignPayoutTx(TaskRunner taskHandler, Trade trade) {
         super(taskHandler, trade);
     }
@@ -42,7 +47,7 @@ public class SignPayoutTx extends TradeTask {
             runInterceptHook();
             checkNotNull(trade.getTradeAmount(), "trade.getTradeAmount() must not be null");
             checkNotNull(trade.getDepositTx(), "trade.getDepositTx() must not be null");
-            Coin sellerPayoutAmount = FeePolicy.getSecurityDeposit(trade.getOffer());
+            Coin sellerPayoutAmount = trade.getOffer().getSecurityDeposit();
             Coin buyerPayoutAmount = sellerPayoutAmount.add(trade.getTradeAmount());
 
             // We use the sellers LastBlockSeenHeight, which might be different to the buyers one.
@@ -55,18 +60,25 @@ public class SignPayoutTx extends TradeTask {
                 lockTimeAsBlockHeight = processModel.getTradeWalletService().getLastBlockSeenHeight() + lockTime;
             trade.setLockTimeAsBlockHeight(lockTimeAsBlockHeight);
 
-            WalletService walletService = processModel.getWalletService();
+            BtcWalletService walletService = processModel.getWalletService();
             String id = processModel.getOffer().getId();
+            String sellerPayoutAddressString = walletService.getOrCreateAddressEntry(id, AddressEntry.Context.TRADE_PAYOUT).getAddressString();
+            DeterministicKey multiSigKeyPair = walletService.getMultiSigKeyPair(id, processModel.getMyMultiSigPubKey());
+            byte[] sellerMultiSigPubKey = processModel.getMyMultiSigPubKey();
+            checkArgument(Arrays.equals(sellerMultiSigPubKey,
+                            walletService.getOrCreateAddressEntry(id, AddressEntry.Context.MULTI_SIG).getPubKey()),
+                    "sellerMultiSigPubKey from AddressEntry must match the one from the trade data. trade id =" + id);
+
             byte[] payoutTxSignature = processModel.getTradeWalletService().sellerSignsPayoutTx(
                     trade.getDepositTx(),
                     buyerPayoutAmount,
                     sellerPayoutAmount,
                     processModel.tradingPeer.getPayoutAddressString(),
-                    walletService.getOrCreateAddressEntry(id, AddressEntry.Context.TRADE_PAYOUT),
-                    walletService.getOrCreateAddressEntry(id, AddressEntry.Context.MULTI_SIG),
+                    sellerPayoutAddressString,
+                    multiSigKeyPair,
                     lockTimeAsBlockHeight,
                     processModel.tradingPeer.getMultiSigPubKey(),
-                    walletService.getOrCreateAddressEntry(id, AddressEntry.Context.MULTI_SIG).getPubKey(),
+                    sellerMultiSigPubKey,
                     trade.getArbitratorPubKey());
 
             processModel.setPayoutTxSignature(payoutTxSignature);

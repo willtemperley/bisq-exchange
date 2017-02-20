@@ -38,6 +38,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class BroadcastAfterLockTime extends TradeTask {
     private static final Logger log = LoggerFactory.getLogger(BroadcastAfterLockTime.class);
 
+    @SuppressWarnings({"WeakerAccess", "unused"})
     public BroadcastAfterLockTime(TaskRunner taskHandler, Trade trade) {
         super(taskHandler, trade);
     }
@@ -74,7 +75,7 @@ public class BroadcastAfterLockTime extends TradeTask {
         Transaction payoutTx = trade.getPayoutTx();
         checkNotNull(payoutTx, "payoutTx must not be null at BroadcastAfterLockTime.broadcastTx");
 
-        Transaction payoutTxFromWallet = processModel.getWalletService().getWallet().getTransaction(payoutTx.getHash());
+        Transaction payoutTxFromWallet = processModel.getWalletService().getTransaction(payoutTx.getHash());
         log.debug("payoutTxFromWallet:" + payoutTxFromWallet);
         if (payoutTxFromWallet != null)
             payoutTx = payoutTxFromWallet;

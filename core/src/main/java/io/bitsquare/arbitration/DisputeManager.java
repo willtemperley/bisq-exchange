@@ -23,10 +23,10 @@ import io.bitsquare.app.Log;
 import io.bitsquare.arbitration.messages.*;
 import io.bitsquare.arbitration.payload.Attachment;
 import io.bitsquare.btc.AddressEntry;
-import io.bitsquare.btc.TradeWalletService;
-import io.bitsquare.btc.WalletService;
 import io.bitsquare.btc.exceptions.TransactionVerificationException;
 import io.bitsquare.btc.exceptions.WalletException;
+import io.bitsquare.btc.wallet.BtcWalletService;
+import io.bitsquare.btc.wallet.TradeWalletService;
 import io.bitsquare.common.Timer;
 import io.bitsquare.common.UserThread;
 import io.bitsquare.common.crypto.KeyRing;
@@ -51,6 +51,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.bitcoinj.core.AddressFormatException;
 import org.bitcoinj.core.Transaction;
+import org.bitcoinj.crypto.DeterministicKey;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,9 +70,9 @@ public class DisputeManager {
     private static final Logger log = LoggerFactory.getLogger(DisputeManager.class);
 
     private final TradeWalletService tradeWalletService;
-    private final WalletService walletService;
+    private final BtcWalletService walletService;
     private final TradeManager tradeManager;
-    private ClosedTradableManager closedTradableManager;
+    private final ClosedTradableManager closedTradableManager;
     private final OpenOfferManager openOfferManager;
     private final P2PService p2PService;
     private final KeyRing keyRing;
@@ -83,7 +84,7 @@ public class DisputeManager {
     private final CopyOnWriteArraySet<DecryptedMsgWithPubKey> decryptedDirectMessageWithPubKeys = new CopyOnWriteArraySet<>();
     private final Map<String, Dispute> openDisputes;
     private final Map<String, Dispute> closedDisputes;
-    private Map<String, Timer> delayMsgMap = new HashMap<>();
+    private final Map<String, Timer> delayMsgMap = new HashMap<>();
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -93,7 +94,7 @@ public class DisputeManager {
     @Inject
     public DisputeManager(P2PService p2PService,
                           TradeWalletService tradeWalletService,
-                          WalletService walletService,
+                          BtcWalletService walletService,
                           TradeManager tradeManager,
                           ClosedTradableManager closedTradableManager,
                           OpenOfferManager openOfferManager,
@@ -597,7 +598,8 @@ public class DisputeManager {
                         if (dispute.getDepositTxSerialized() != null) {
                             try {
                                 log.debug("do payout Transaction ");
-
+                                byte[] multiSigPubKey = isBuyer ? contract.getBuyerMultiSigPubKey() : contract.getSellerMultiSigPubKey();
+                                DeterministicKey multiSigKeyPair = walletService.getMultiSigKeyPair(dispute.getTradeId(), multiSigPubKey);
                                 Transaction signedDisputedPayoutTx = tradeWalletService.traderSignAndFinalizeDisputedPayoutTx(
                                         dispute.getDepositTxSerialized(),
                                         disputeResult.getArbitratorSignature(),
@@ -607,9 +609,9 @@ public class DisputeManager {
                                         contract.getBuyerPayoutAddressString(),
                                         contract.getSellerPayoutAddressString(),
                                         disputeResult.getArbitratorAddressAsString(),
-                                        walletService.getOrCreateAddressEntry(dispute.getTradeId(), AddressEntry.Context.MULTI_SIG),
-                                        contract.getBuyerBtcPubKey(),
-                                        contract.getSellerBtcPubKey(),
+                                        multiSigKeyPair,
+                                        contract.getBuyerMultiSigPubKey(),
+                                        contract.getSellerMultiSigPubKey(),
                                         disputeResult.getArbitratorPubKey()
                                 );
                                 Transaction committedDisputedPayoutTx = tradeWalletService.addTransactionToWallet(signedDisputedPayoutTx);
@@ -686,8 +688,9 @@ public class DisputeManager {
         if (disputeOptional.isPresent()) {
             cleanupRetryMap(uid);
 
-            Transaction transaction = tradeWalletService.addTransactionToWallet(peerPublishedPayoutTxMessage.transaction);
-            disputeOptional.get().setDisputePayoutTxId(transaction.getHashAsString());
+            Transaction walletTx = tradeWalletService.addTransactionToWallet(peerPublishedPayoutTxMessage.transaction);
+            disputeOptional.get().setDisputePayoutTxId(walletTx.getHashAsString());
+            BtcWalletService.printTx("Disputed payoutTx received from peer", walletTx);
             tradeManager.closeDisputedTrade(tradeId);
         } else {
             log.debug("We got a peerPublishedPayoutTxMessage but we don't have a matching dispute. TradeId = " + tradeId);

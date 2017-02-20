@@ -21,10 +21,9 @@ import io.bitsquare.arbitration.Dispute;
 import io.bitsquare.arbitration.DisputeManager;
 import io.bitsquare.arbitration.DisputeResult;
 import io.bitsquare.btc.AddressEntry;
-import io.bitsquare.btc.FeePolicy;
-import io.bitsquare.btc.TradeWalletService;
-import io.bitsquare.btc.WalletService;
 import io.bitsquare.btc.exceptions.TransactionVerificationException;
+import io.bitsquare.btc.wallet.BtcWalletService;
+import io.bitsquare.btc.wallet.TradeWalletService;
 import io.bitsquare.common.UserThread;
 import io.bitsquare.common.util.Tuple2;
 import io.bitsquare.gui.components.InputTextField;
@@ -64,7 +63,7 @@ public class DisputeSummaryWindow extends Overlay<DisputeSummaryWindow> {
 
     private final BSFormatter formatter;
     private final DisputeManager disputeManager;
-    private final WalletService walletService;
+    private final BtcWalletService walletService;
     private final TradeWalletService tradeWalletService;
     private Dispute dispute;
     private Optional<Runnable> finalizeDisputeHandlerOptional = Optional.empty();
@@ -94,7 +93,7 @@ public class DisputeSummaryWindow extends Overlay<DisputeSummaryWindow> {
     ///////////////////////////////////////////////////////////////////////////////////////////
 
     @Inject
-    public DisputeSummaryWindow(BSFormatter formatter, DisputeManager disputeManager, WalletService walletService, TradeWalletService tradeWalletService) {
+    public DisputeSummaryWindow(BSFormatter formatter, DisputeManager disputeManager, BtcWalletService walletService, TradeWalletService tradeWalletService) {
         this.formatter = formatter;
         this.disputeManager = disputeManager;
         this.walletService = walletService;
@@ -370,16 +369,18 @@ public class DisputeSummaryWindow extends Overlay<DisputeSummaryWindow> {
         Coin buyerAmount = formatter.parseToCoin(buyerPayoutAmountInputTextField.getText());
         Coin sellerAmount = formatter.parseToCoin(sellerPayoutAmountInputTextField.getText());
         Coin arbitratorAmount = formatter.parseToCoin(arbitratorPayoutAmountInputTextField.getText());
-        Coin securityDeposit = FeePolicy.getSecurityDeposit(dispute.getContract().offer);
-        Coin tradeAmount = dispute.getContract().getTradeAmount();
+        Contract contract = dispute.getContract();
+        Coin securityDeposit = contract.offer.getSecurityDeposit();
+        Coin tradeAmount = contract.getTradeAmount();
         Coin available = tradeAmount.add(securityDeposit).add(securityDeposit);
         Coin totalAmount = buyerAmount.add(sellerAmount).add(arbitratorAmount);
         return (totalAmount.compareTo(available) == 0);
     }
 
     private void applyCustomAmounts(InputTextField inputTextField) {
-        Coin securityDeposit = FeePolicy.getSecurityDeposit(dispute.getContract().offer);
-        Coin tradeAmount = dispute.getContract().getTradeAmount();
+        Contract contract = dispute.getContract();
+        Coin securityDeposit = contract.offer.getSecurityDeposit();
+        Coin tradeAmount = contract.getTradeAmount();
 
         Coin buyerAmount = formatter.parseToCoin(buyerPayoutAmountInputTextField.getText());
         Coin sellerAmount = formatter.parseToCoin(sellerPayoutAmountInputTextField.getText());
@@ -605,9 +606,10 @@ public class DisputeSummaryWindow extends Overlay<DisputeSummaryWindow> {
                             disputeResult.getArbitratorPayoutAmount(),
                             contract.getBuyerPayoutAddressString(),
                             contract.getSellerPayoutAddressString(),
-                            arbitratorAddressEntry,
-                            contract.getBuyerBtcPubKey(),
-                            contract.getSellerBtcPubKey(),
+                            arbitratorAddressEntry.getAddressString(),
+                            arbitratorAddressEntry.getKeyPair(),
+                            contract.getBuyerMultiSigPubKey(),
+                            contract.getSellerMultiSigPubKey(),
                             arbitratorAddressEntry.getPubKey()
                     );
                     disputeResult.setArbitratorSignature(arbitratorSignature);
@@ -637,7 +639,7 @@ public class DisputeSummaryWindow extends Overlay<DisputeSummaryWindow> {
 
                     hide();
 
-                    finalizeDisputeHandlerOptional.ifPresent(finalizeDisputeHandler -> finalizeDisputeHandler.run());
+                    finalizeDisputeHandlerOptional.ifPresent(Runnable::run);
                 } catch (AddressFormatException | TransactionVerificationException e2) {
                     e2.printStackTrace();
                 }
@@ -669,7 +671,7 @@ public class DisputeSummaryWindow extends Overlay<DisputeSummaryWindow> {
 
     private void calculatePayoutAmounts(DisputeResult.DisputeFeePolicy feePayment) {
         Contract contract = dispute.getContract();
-        Coin refund = FeePolicy.getSecurityDeposit(dispute.getContract().offer);
+        Coin refund = contract.offer.getSecurityDeposit();
         Coin winnerRefund;
         Coin loserRefund;
         switch (feePayment) {

@@ -18,8 +18,8 @@
 package io.bitsquare.gui.main.funds.locked;
 
 import io.bitsquare.btc.AddressEntry;
-import io.bitsquare.btc.WalletService;
 import io.bitsquare.btc.listeners.BalanceListener;
+import io.bitsquare.btc.wallet.BtcWalletService;
 import io.bitsquare.gui.util.BSFormatter;
 import io.bitsquare.trade.Tradable;
 import io.bitsquare.trade.Trade;
@@ -32,7 +32,7 @@ import org.bitcoinj.core.Transaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class LockedListItem {
+class LockedListItem {
     private final Logger log = LoggerFactory.getLogger(this.getClass());
 
     private final StringProperty date = new SimpleStringProperty();
@@ -40,12 +40,12 @@ public class LockedListItem {
     private final Label balanceLabel;
     private final Trade trade;
     private final AddressEntry addressEntry;
-    private final WalletService walletService;
+    private final BtcWalletService walletService;
     private final BSFormatter formatter;
     private final String addressString;
     private Coin balance;
 
-    public LockedListItem(Trade trade, AddressEntry addressEntry, WalletService walletService, BSFormatter formatter) {
+    public LockedListItem(Trade trade, AddressEntry addressEntry, BtcWalletService walletService, BSFormatter formatter) {
         this.trade = trade;
         this.addressEntry = addressEntry;
         this.walletService = walletService;
@@ -71,7 +71,7 @@ public class LockedListItem {
     }
 
     private void updateBalance() {
-        balance = addressEntry.getLockedTradeAmount();
+        balance = addressEntry.getCoinLockedInMultiSig();
         if (balance != null)
             balanceLabel.setText(formatter.formatCoin(this.balance));
     }

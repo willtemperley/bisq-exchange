@@ -18,6 +18,7 @@
 package io.bitsquare.trade.protocol.trade.tasks.taker;
 
 import io.bitsquare.btc.AddressEntry;
+import io.bitsquare.btc.wallet.BtcWalletService;
 import io.bitsquare.common.crypto.Sig;
 import io.bitsquare.common.taskrunner.TaskRunner;
 import io.bitsquare.common.util.Utilities;
@@ -31,11 +32,16 @@ import io.bitsquare.trade.protocol.trade.tasks.TradeTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
+import java.util.Optional;
+
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 public class VerifyAndSignContract extends TradeTask {
     private static final Logger log = LoggerFactory.getLogger(VerifyAndSignContract.class);
 
+    @SuppressWarnings({"WeakerAccess", "unused"})
     public VerifyAndSignContract(TaskRunner taskHandler, Trade trade) {
         super(taskHandler, trade);
     }
@@ -52,11 +58,23 @@ public class VerifyAndSignContract extends TradeTask {
             PaymentAccountContractData takerPaymentAccountContractData = processModel.getPaymentAccountContractData(trade);
 
             boolean isBuyerOffererAndSellerTaker = trade instanceof SellerAsTakerTrade;
-            NodeAddress buyerNodeAddress = isBuyerOffererAndSellerTaker ? processModel.getTempTradingPeerNodeAddress() : processModel.getMyAddress();
-            NodeAddress sellerNodeAddress = isBuyerOffererAndSellerTaker ? processModel.getMyAddress() : processModel.getTempTradingPeerNodeAddress();
+            NodeAddress buyerNodeAddress = isBuyerOffererAndSellerTaker ? processModel.getTempTradingPeerNodeAddress() : processModel.getMyNodeAddress();
+            NodeAddress sellerNodeAddress = isBuyerOffererAndSellerTaker ? processModel.getMyNodeAddress() : processModel.getTempTradingPeerNodeAddress();
             log.debug("isBuyerOffererAndSellerTaker " + isBuyerOffererAndSellerTaker);
             log.debug("buyerAddress " + buyerNodeAddress);
             log.debug("sellerAddress " + sellerNodeAddress);
+
+            BtcWalletService walletService = processModel.getWalletService();
+            String id = processModel.getOffer().getId();
+            AddressEntry takerPayoutAddressEntry = walletService.getOrCreateAddressEntry(id, AddressEntry.Context.TRADE_PAYOUT);
+            String takerPayoutAddressString = takerPayoutAddressEntry.getAddressString();
+            Optional<AddressEntry> addressEntryOptional = walletService.getAddressEntry(id, AddressEntry.Context.MULTI_SIG);
+            checkArgument(addressEntryOptional.isPresent(), "addressEntryOptional must be present");
+            AddressEntry takerMultiSigAddressEntry = addressEntryOptional.get();
+            byte[] takerMultiSigPubKey = processModel.getMyMultiSigPubKey();
+            checkArgument(Arrays.equals(takerMultiSigPubKey,
+                            takerMultiSigAddressEntry.getPubKey()),
+                    "takerMultiSigPubKey from AddressEntry must match the one from the trade data. trade id =" + id);
 
             Contract contract = new Contract(
                     processModel.getOffer(),
@@ -74,9 +92,9 @@ public class VerifyAndSignContract extends TradeTask {
                     offerer.getPubKeyRing(),
                     processModel.getPubKeyRing(),
                     offerer.getPayoutAddressString(),
-                    processModel.getWalletService().getOrCreateAddressEntry(processModel.getOffer().getId(), AddressEntry.Context.TRADE_PAYOUT).getAddressString(),
+                    takerPayoutAddressString,
                     offerer.getMultiSigPubKey(),
-                    processModel.getWalletService().getOrCreateAddressEntry(processModel.getOffer().getId(), AddressEntry.Context.MULTI_SIG).getPubKey()
+                    takerMultiSigPubKey
             );
             String contractAsJson = Utilities.objectToJson(contract);
             String signature = Sig.sign(processModel.getKeyRing().getSignatureKeyPair().getPrivate(), contractAsJson);

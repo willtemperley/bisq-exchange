@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 public class SendPayoutTxFinalizedMessage extends TradeTask {
     private static final Logger log = LoggerFactory.getLogger(SendPayoutTxFinalizedMessage.class);
 
+    @SuppressWarnings({"WeakerAccess", "unused"})
     public SendPayoutTxFinalizedMessage(TaskRunner taskHandler, Trade trade) {
         super(taskHandler, trade);
     }
@@ -43,7 +44,7 @@ public class SendPayoutTxFinalizedMessage extends TradeTask {
                         new PayoutTxFinalizedMessage(
                                 processModel.getId(),
                                 trade.getPayoutTx().bitcoinSerialize(),
-                                processModel.getMyAddress()
+                                processModel.getMyNodeAddress()
                         ),
                         new SendMailboxMessageListener() {
                             @Override
