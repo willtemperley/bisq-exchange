@@ -28,6 +28,7 @@ import io.bisq.core.offer.Offer;
 import io.bisq.core.offer.OfferPayload;
 import io.bisq.core.payment.PaymentAccount;
 import io.bisq.core.payment.payload.PaymentMethod;
+import io.bisq.core.user.Preferences;
 import io.bisq.core.user.User;
 import io.bisq.gui.Navigation;
 import io.bisq.gui.components.BusyAnimation;
@@ -61,6 +62,7 @@ public class OfferDetailsWindow extends Overlay<OfferDetailsWindow> {
     private final BSFormatter formatter;
     private final User user;
     private final KeyRing keyRing;
+    private final Preferences preferences;
     private final Navigation navigation;
     private Offer offer;
     private Coin tradeAmount;
@@ -76,10 +78,11 @@ public class OfferDetailsWindow extends Overlay<OfferDetailsWindow> {
 
     @Inject
     public OfferDetailsWindow(BSFormatter formatter, User user, KeyRing keyRing,
-                              Navigation navigation) {
+                              Preferences preferences, Navigation navigation) {
         this.formatter = formatter;
         this.user = user;
         this.keyRing = keyRing;
+        this.preferences = preferences;
         this.navigation = navigation;
         type = Type.Confirmation;
     }
@@ -257,7 +260,7 @@ public class OfferDetailsWindow extends Overlay<OfferDetailsWindow> {
                     (formatter.formatDate(paymentAccount.getCreationDate()) + " / " +
                             formatter.formatDurationAsDays(paymentAccount.getAge()))).second;
 
-            if (!paymentAccount.isAgeMature())
+            if (!paymentAccount.isAgeMature(preferences.getRequiredAccountAge()))
                 accountAgeTextField.setStyle("-fx-text-fill: -bs-warning;");
         }
 

@@ -163,6 +163,11 @@ public final class Preferences implements PersistedDataHost {
             setFiatCurrencies(prefPayload.getFiatCurrencies());
             setCryptoCurrencies(prefPayload.getCryptoCurrencies());
 
+            // For users with priv. versions we want to set the default values
+            if (prefPayload.getRequiredAccountAge() == 0) {
+                prefPayload.setRequiredAccountAge(30);
+                prefPayload.setRequireSocial2FA(true);
+            }
         } else {
             prefPayload = new PreferencesPayload();
             prefPayload.setUserLanguage(GlobalSettings.getLocale().getLanguage());
@@ -198,6 +203,9 @@ public final class Preferences implements PersistedDataHost {
             prefPayload.setTradeChartsScreenCurrencyCode(preferredTradeCurrency.getCode());
             prefPayload.setBuyScreenCurrencyCode(preferredTradeCurrency.getCode());
             prefPayload.setSellScreenCurrencyCode(preferredTradeCurrency.getCode());
+
+            prefPayload.setRequiredAccountAge(30);
+            prefPayload.setRequireSocial2FA(true);
         }
 
 

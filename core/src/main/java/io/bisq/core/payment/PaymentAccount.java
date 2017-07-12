@@ -149,7 +149,7 @@ public abstract class PaymentAccount implements PersistablePayload {
         return Instant.now().getEpochSecond() * 1000 - creationDate;
     }
 
-    public boolean isAgeMature() {
-        return getAge() > TimeUnit.DAYS.toMillis(30);
+    public boolean isAgeMature(int days) {
+        return getAge() > TimeUnit.DAYS.toMillis(days);
     }
 }

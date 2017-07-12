@@ -91,7 +91,7 @@ public class BtcValidator extends NumberValidator {
         try {
             final Coin coin = Coin.parseCoin(input);
             if (maxValue != null && coin.compareTo(maxValue) > 0)
-                return new ValidationResult(false, Res.get("validation.btc.toLarge", formatter.formatCoinWithCode(maxValue)));
+                return new ValidationResult(false, Res.get("validation.tooLarge", formatter.formatCoinWithCode(maxValue)));
             else
                 return new ValidationResult(true);
         } catch (Throwable t) {
@@ -103,7 +103,7 @@ public class BtcValidator extends NumberValidator {
         try {
             final Coin coin = Coin.parseCoin(input);
             if (minValue != null && coin.compareTo(minValue) < 0)
-                return new ValidationResult(false, Res.get("validation.btc.toSmall", formatter.formatCoinWithCode(minValue)));
+                return new ValidationResult(false, Res.get("validation.tooSmall", formatter.formatCoinWithCode(minValue)));
             else
                 return new ValidationResult(true);
         } catch (Throwable t) {

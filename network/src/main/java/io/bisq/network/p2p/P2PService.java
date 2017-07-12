@@ -882,6 +882,7 @@ public class P2PService implements SetupListener, MessageListener, ConnectionLis
         return networkNode;
     }
 
+    @Nullable
     public NodeAddress getAddress() {
         return networkNode.getNodeAddress();
     }

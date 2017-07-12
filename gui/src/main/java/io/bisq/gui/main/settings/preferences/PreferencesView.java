@@ -22,11 +22,13 @@ import io.bisq.common.app.DevEnv;
 import io.bisq.common.locale.*;
 import io.bisq.common.util.Tuple2;
 import io.bisq.common.util.Tuple3;
+import io.bisq.common.util.Utilities;
 import io.bisq.core.app.BisqEnvironment;
 import io.bisq.core.btc.BaseCurrencyNetwork;
 import io.bisq.core.provider.fee.FeeService;
 import io.bisq.core.user.BlockChainExplorer;
 import io.bisq.core.user.Preferences;
+import io.bisq.core.user.User;
 import io.bisq.gui.app.BisqApp;
 import io.bisq.gui.common.model.Activatable;
 import io.bisq.gui.common.view.ActivatableViewAndModel;
@@ -37,6 +39,9 @@ import io.bisq.gui.main.overlays.popups.Popup;
 import io.bisq.gui.util.BSFormatter;
 import io.bisq.gui.util.ImageUtil;
 import io.bisq.gui.util.Layout;
+import io.bisq.gui.util.validation.InputAsIntegerValidator;
+import io.bisq.network.p2p.NodeAddress;
+import io.bisq.network.p2p.P2PService;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -46,6 +51,7 @@ import javafx.scene.control.*;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.util.Callback;
 import javafx.util.StringConverter;
 import org.apache.commons.lang3.StringUtils;
@@ -69,12 +75,16 @@ public class PreferencesView extends ActivatableViewAndModel<GridPane, Activatab
     private ComboBox<TradeCurrency> preferredTradeCurrencyComboBox;
     private ComboBox<BaseCurrencyNetwork> selectBaseCurrencyNetworkComboBox;
 
-    private CheckBox useAnimationsCheckBox, autoSelectArbitratorsCheckBox, showOwnOffersInOfferBook, sortMarketCurrenciesNumericallyCheckBox, useCustomFeeCheckbox;
+    private CheckBox useAnimationsCheckBox, autoSelectArbitratorsCheckBox, showOwnOffersInOfferBook,
+            sortMarketCurrenciesNumericallyCheckBox, useCustomFeeCheckbox, requireSocial2FACheckbox;
     private int gridRow = 0;
-    private InputTextField transactionFeeInputTextField, ignoreTradersListInputTextField;
+    private InputTextField transactionFeeInputTextField, ignoreTradersListInputTextField,
+            requiredAccountAgeInputTextField, mySocial2FALinkInputTextField;
     private ChangeListener<Boolean> transactionFeeFocusedListener;
     private final Preferences preferences;
     private final FeeService feeService;
+    private final User user;
+    private final P2PService p2PService;
     private final BisqEnvironment bisqEnvironment;
     private final BSFormatter formatter;
 
@@ -82,7 +92,7 @@ public class PreferencesView extends ActivatableViewAndModel<GridPane, Activatab
     private ComboBox<FiatCurrency> fiatCurrenciesComboBox;
     private ListView<CryptoCurrency> cryptoCurrenciesListView;
     private ComboBox<CryptoCurrency> cryptoCurrenciesComboBox;
-    private Button resetDontShowAgainButton;
+    private Button resetDontShowAgainButton, mySocial2FALinkInfoButton;
     // private ListChangeListener<TradeCurrency> displayCurrenciesListChangeListener;
     private ObservableList<BlockChainExplorer> blockExplorers;
     private ObservableList<String> languageCodes;
@@ -93,7 +103,8 @@ public class PreferencesView extends ActivatableViewAndModel<GridPane, Activatab
     private ObservableList<CryptoCurrency> allCryptoCurrencies;
     private ObservableList<TradeCurrency> tradeCurrencies;
     private InputTextField deviationInputTextField;
-    private ChangeListener<String> deviationListener, ignoreTradersListListener;
+    private ChangeListener<String> deviationListener, ignoreTradersListListener, requiredAccountAgeListener,
+            mySocial2FALinkListener;
     private ChangeListener<Boolean> deviationFocusedListener;
     private ChangeListener<Boolean> useCustomFeeCheckboxListener;
     private ChangeListener<Number> transactionFeeChangeListener;
@@ -104,11 +115,13 @@ public class PreferencesView extends ActivatableViewAndModel<GridPane, Activatab
     ///////////////////////////////////////////////////////////////////////////////////////////
 
     @Inject
-    public PreferencesView(Preferences preferences, FeeService feeService,
+    public PreferencesView(Preferences preferences, FeeService feeService, User user, P2PService p2PService,
                            BisqEnvironment bisqEnvironment, BSFormatter formatter) {
         super();
         this.preferences = preferences;
         this.feeService = feeService;
+        this.user = user;
+        this.p2PService = p2PService;
         this.bisqEnvironment = bisqEnvironment;
         this.formatter = formatter;
     }
@@ -154,7 +167,7 @@ public class PreferencesView extends ActivatableViewAndModel<GridPane, Activatab
     ///////////////////////////////////////////////////////////////////////////////////////////
 
     private void initializeGeneralOptions() {
-        TitledGroupBg titledGroupBg = addTitledGroupBg(root, gridRow, 8, Res.get("setting.preferences.general"));
+        TitledGroupBg titledGroupBg = addTitledGroupBg(root, gridRow, 11, Res.get("setting.preferences.general"));
         GridPane.setColumnSpan(titledGroupBg, 4);
 
         // selectBaseCurrencyNetwork
@@ -263,9 +276,46 @@ public class PreferencesView extends ActivatableViewAndModel<GridPane, Activatab
                 UserThread.runAfter(() -> deviationInputTextField.setText(formatter.formatPercentagePrice(preferences.getMaxPriceDistanceInPercent())), 100, TimeUnit.MILLISECONDS);
         };
 
+        // requiredAccountAge
+        requiredAccountAgeInputTextField = addLabelInputTextField(root, ++gridRow,
+                Res.get("setting.preferences.requiredAccountAge")).second;
+        requiredAccountAgeInputTextField.setText(String.valueOf(preferences.getRequiredAccountAge()));
+        final InputAsIntegerValidator requiredAccountAgeIValidator = new InputAsIntegerValidator();
+        requiredAccountAgeIValidator.setMinValue(0);
+        requiredAccountAgeListener = (observable, oldValue, newValue) -> {
+            if (requiredAccountAgeIValidator.validate(newValue).isValid)
+                preferences.setRequiredAccountAge(Integer.parseInt(newValue));
+        };
+        requiredAccountAgeInputTextField.setValidator(requiredAccountAgeIValidator);
+
+        // requireSocial2FA
+        requireSocial2FACheckbox = addLabelCheckBox(root, ++gridRow,
+                Res.get("setting.preferences.requireSocial2FA")).second;
+
+        // mySocial2FALink
+        final Tuple3<Label, InputTextField, Button> mySocial2FALinkTuple = addLabelInputTextFieldButton(root, ++gridRow,
+                Res.get("setting.preferences.mySocial2FALink"), "");
+        mySocial2FALinkInputTextField = mySocial2FALinkTuple.second;
+        if (user.getMySocial2FALink() != null)
+            mySocial2FALinkInputTextField.setText(user.getMySocial2FALink());
+        mySocial2FALinkInputTextField.setPromptText(Res.get("setting.preferences.mySocial2FALink.prompt"));
+        mySocial2FALinkListener = (observable, oldValue, newValue) -> {
+            if (newValue == null)
+                newValue = "";
+            user.setMySocial2FALink(newValue);
+        };
+
+        mySocial2FALinkInfoButton = mySocial2FALinkTuple.third;
+        mySocial2FALinkInfoButton.setId("icon-button");
+        HBox.setMargin(mySocial2FALinkInfoButton, new Insets(-4, 0, 0, -12));
+        ImageView iconView = new ImageView();
+        iconView.setId("image-info");
+        mySocial2FALinkInfoButton.setGraphic(iconView);
+
         // autoSelectArbitrators
         autoSelectArbitratorsCheckBox = addLabelCheckBox(root, ++gridRow,
                 Res.get("setting.preferences.autoSelectArbitrators"), "").second;
+
 
         // ignoreTraders 
         ignoreTradersListInputTextField = addLabelInputTextField(root, ++gridRow,
@@ -543,6 +593,26 @@ public class PreferencesView extends ActivatableViewAndModel<GridPane, Activatab
         deviationInputTextField.textProperty().addListener(deviationListener);
         deviationInputTextField.focusedProperty().addListener(deviationFocusedListener);
 
+        requiredAccountAgeInputTextField.textProperty().addListener(requiredAccountAgeListener);
+        mySocial2FALinkInputTextField.textProperty().addListener(mySocial2FALinkListener);
+
+        requireSocial2FACheckbox.setSelected(preferences.isRequireSocial2FA());
+        requireSocial2FACheckbox.setOnAction(e -> preferences.setRequireSocial2FA(requireSocial2FACheckbox.isSelected()));
+
+        mySocial2FALinkInfoButton.setOnAction(e -> {
+            final NodeAddress myOnionAddress = p2PService.getAddress();
+            if (myOnionAddress != null) {
+                final String hash = user.getHashAsHexForSocial2FA(myOnionAddress);
+                new Popup<>()
+                        .information(Res.get("setting.preferences.mySocial2FALink.info", hash, hash))
+                        .width(800)
+                        .closeButtonText(Res.get("shared.copyToClipboard"))
+                        .onClose(() -> Utilities.copyToClipboard(hash))
+                        .show();
+            } else
+                new Popup<>().warning(Res.get("popup.warning.notFullyConnected")).show();
+        });
+        
         transactionFeeInputTextField.focusedProperty().addListener(transactionFeeFocusedListener);
         ignoreTradersListInputTextField.textProperty().addListener(ignoreTradersListListener);
         useCustomFeeCheckbox.selectedProperty().addListener(useCustomFeeCheckboxListener);
@@ -644,6 +714,12 @@ public class PreferencesView extends ActivatableViewAndModel<GridPane, Activatab
         deviationInputTextField.textProperty().removeListener(deviationListener);
         deviationInputTextField.focusedProperty().removeListener(deviationFocusedListener);
         transactionFeeInputTextField.focusedProperty().removeListener(transactionFeeFocusedListener);
+
+        requiredAccountAgeInputTextField.textProperty().removeListener(requiredAccountAgeListener);
+        mySocial2FALinkInputTextField.textProperty().removeListener(mySocial2FALinkListener);
+        requireSocial2FACheckbox.setOnAction(null);
+        mySocial2FALinkInfoButton.setOnAction(null);
+        
         if (transactionFeeChangeListener != null)
             feeService.feeUpdateCounterProperty().removeListener(transactionFeeChangeListener);
         ignoreTradersListInputTextField.textProperty().removeListener(ignoreTradersListListener);

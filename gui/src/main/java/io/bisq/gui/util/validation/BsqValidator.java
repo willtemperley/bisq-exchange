@@ -97,7 +97,7 @@ public class BsqValidator extends AltcoinValidator {
         try {
             final Coin coin = bsqFormatter.parseToCoin(input);
             if (maxValue != null && coin.compareTo(maxValue) > 0)
-                return new ValidationResult(false, Res.get("validation.btc.toLarge", bsqFormatter.formatCoinWithCode(maxValue)));
+                return new ValidationResult(false, Res.get("validation.tooLarge", bsqFormatter.formatCoinWithCode(maxValue)));
             else
                 return new ValidationResult(true);
         } catch (Throwable t) {

@@ -17,11 +17,14 @@
 
 package io.bisq.core.user;
 
+import com.google.common.annotations.VisibleForTesting;
+import io.bisq.common.crypto.Hash;
 import io.bisq.common.crypto.KeyRing;
 import io.bisq.common.locale.LanguageUtil;
 import io.bisq.common.locale.TradeCurrency;
 import io.bisq.common.proto.persistable.PersistedDataHost;
 import io.bisq.common.storage.Storage;
+import io.bisq.common.util.Utilities;
 import io.bisq.core.alert.Alert;
 import io.bisq.core.arbitration.Arbitrator;
 import io.bisq.core.arbitration.Mediator;
@@ -39,6 +42,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
+import java.math.BigInteger;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -99,6 +103,10 @@ public final class User implements PersistedDataHost {
             userPayload.setCurrentPaymentAccount(currentPaymentAccountProperty.get());
             persist();
         });
+
+        // For users with priv. versions we want to init with a random value, otherwise it would be 0
+        if (userPayload.getMySocial2FANonce() == 0)
+            setMySocial2FANonce(new Random().nextInt());
 
         if (!wasPersisted)
             persist();
@@ -422,5 +430,26 @@ public final class User implements PersistedDataHost {
 
     public String getMySocial2FALink() {
         return userPayload.getMySocial2FALink();
+    }
+
+    public String getHashAsHexForSocial2FA(NodeAddress myOnionAddress) {
+        return getStringFromBytes(Hash.getHash(myOnionAddress.getFullAddress() + Math.abs(getMySocial2FANonce())));
+    }
+
+    @VisibleForTesting
+    static String getStringFromBytes(byte[] bytes) {
+        long longValue = Math.abs(new BigInteger(bytes).longValue());
+        int intValue = Math.abs((int) longValue);
+        final String longValueAsString = String.valueOf(longValue);
+        String hexValue = Utilities.bytesAsHexString(bytes);
+        String hexValueShortened = hexValue.length() > 20 ? hexValue.substring(0, 10 + (intValue % 10)) : hexValue;
+        if (intValue % 3 == 0 && longValueAsString.length() > 10) {
+            final int endIndex = 5 + (intValue % 5);
+            return longValueAsString.substring(0, endIndex);
+        } else if (intValue % 3 == 1)
+            return hexValueShortened.toUpperCase();
+        else
+            return hexValueShortened;
+
     }
 }
