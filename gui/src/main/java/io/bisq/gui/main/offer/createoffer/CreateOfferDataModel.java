@@ -349,6 +349,7 @@ class CreateOfferDataModel extends ActivatableDataModel {
         checkArgument(buyerSecurityDepositAsCoin.compareTo(Restrictions.getMinBuyerSecurityDeposit()) >= 0,
                 "securityDeposit must be not be less than " +
                         Restrictions.getMinBuyerSecurityDeposit().toFriendlyString());
+
         OfferPayload offerPayload = new OfferPayload(offerId,
                 new Date().getTime(),
                 p2PService.getAddress(),
@@ -386,7 +387,12 @@ class CreateOfferDataModel extends ActivatableDataModel {
                 isPrivateOffer,
                 hashOfChallenge,
                 extraDataMap,
-                Version.TRADE_PROTOCOL_VERSION);
+                Version.TRADE_PROTOCOL_VERSION,
+                paymentAccount.getCreationDate().getTime(),
+                preferences.getRequiredAccountAge(),
+                user.getMySocial2FALink(),
+                user.getMySocial2FANonce(),
+                preferences.isRequireSocial2FA());
         Offer offer = new Offer(offerPayload);
         offer.setPriceFeedService(priceFeedService);
         return offer;
@@ -536,11 +542,11 @@ class CreateOfferDataModel extends ActivatableDataModel {
     }
 
     boolean isCurrencyForMakerFeeBtc() {
-        return preferences.getPayFeeInBtc() || !isBsqForFeeAvailable();
+        return preferences.isPayFeeInBtc() || !isBsqForFeeAvailable();
     }
 
     boolean isMakerFeeValid() {
-        return preferences.getPayFeeInBtc() || isBsqForFeeAvailable();
+        return preferences.isPayFeeInBtc() || isBsqForFeeAvailable();
     }
 
     boolean isBsqForFeeAvailable() {

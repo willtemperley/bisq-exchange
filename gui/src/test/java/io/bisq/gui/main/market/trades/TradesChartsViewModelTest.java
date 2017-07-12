@@ -76,7 +76,12 @@ public class TradesChartsViewModelTest {
                 false,
                 null,
                 null,
-                1
+                1,
+                0,
+                0,
+                null,
+                0,
+                false
         );
 
         set.add(new TradeStatistics(offer, Price.parse("520", "EUR"), Coin.parseCoin("1"), new Date(now.getTime()), null, null));

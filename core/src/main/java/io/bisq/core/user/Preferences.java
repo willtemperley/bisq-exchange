@@ -468,6 +468,16 @@ public final class Preferences implements PersistedDataHost {
         persist();
     }
 
+    public void setRequireSocial2FA(boolean requireSocial2FA) {
+        prefPayload.setRequireSocial2FA(requireSocial2FA);
+        persist();
+    }
+
+    public void setRequiredAccountAge(int requiredAccountAge) {
+        prefPayload.setRequiredAccountAge(requiredAccountAge);
+        persist();
+    }
+
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Getter
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -545,10 +555,6 @@ public final class Preferences implements PersistedDataHost {
 
     public Coin getBuyerSecurityDepositAsCoin() {
         return Coin.valueOf(prefPayload.getBuyerSecurityDepositAsLong());
-    }
-
-    public boolean getPayFeeInBtc() {
-        return prefPayload.isPayFeeInBtc();
     }
 
 
@@ -632,5 +638,9 @@ public final class Preferences implements PersistedDataHost {
         void setDontShowAgainMap(Map<String, Boolean> dontShowAgainMap);
 
         void setPeerTagMap(Map<String, String> peerTagMap);
+
+        void setRequireSocial2FA(boolean requireSocial2FA);
+
+        void setRequiredAccountAge(int requiredAccountAge);
     }
 }

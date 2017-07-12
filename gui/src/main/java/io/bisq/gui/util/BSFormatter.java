@@ -483,6 +483,15 @@ public class BSFormatter {
         return formatDurationAsWords(durationMillis, false);
     }
 
+    public String formatDurationAsDays(long durationMillis) {
+        String day = Res.get("time.day").toLowerCase();
+        String days = Res.get("time.days");
+        String format = "d\' " + days + "\'";
+        String duration = DurationFormatUtils.formatDuration(durationMillis, format);
+        duration = StringUtils.replaceOnce(duration, " 1 " + days, " 1 " + day);
+        return duration;
+    }
+
     public static String formatDurationAsWords(long durationMillis, boolean showSeconds) {
         String format;
         String second = Res.get("time.second");

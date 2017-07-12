@@ -330,11 +330,11 @@ class TakeOfferDataModel extends ActivatableDataModel {
     }
 
     boolean isCurrencyForTakerFeeBtc() {
-        return preferences.getPayFeeInBtc() || !isBsqForFeeAvailable();
+        return preferences.isPayFeeInBtc() || !isBsqForFeeAvailable();
     }
 
     boolean isTakerFeeValid() {
-        return preferences.getPayFeeInBtc() || isBsqForFeeAvailable();
+        return preferences.isPayFeeInBtc() || isBsqForFeeAvailable();
     }
 
     boolean isBsqForFeeAvailable() {

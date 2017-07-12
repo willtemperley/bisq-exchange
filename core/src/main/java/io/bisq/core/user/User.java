@@ -75,7 +75,8 @@ public final class User implements PersistedDataHost {
     @Override
     public void readPersisted() {
         UserPayload persisted = storage.initAndGetPersistedWithFileName("UserPayload");
-        userPayload = persisted != null ? persisted : new UserPayload();
+        final boolean wasPersisted = persisted != null;
+        userPayload = wasPersisted ? persisted : new UserPayload();
 
         checkNotNull(userPayload.getPaymentAccounts(), "userPayload.getPaymentAccounts() must not be null");
         checkNotNull(userPayload.getAcceptedLanguageLocaleCodes(), "userPayload.getAcceptedLanguageLocaleCodes() must not be null");
@@ -99,6 +100,8 @@ public final class User implements PersistedDataHost {
             persist();
         });
 
+        if (!wasPersisted)
+            persist();
     }
 
     private void persist() {
@@ -311,6 +314,16 @@ public final class User implements PersistedDataHost {
         persist();
     }
 
+    public void setMySocial2FANonce(int mySocial2FANonce) {
+        userPayload.setMySocial2FANonce(mySocial2FANonce);
+        persist();
+    }
+
+    public void setMySocial2FALink(String mySocial2FALink) {
+        userPayload.setMySocial2FALink(mySocial2FALink);
+        persist();
+    }
+
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Getters
@@ -401,5 +414,13 @@ public final class User implements PersistedDataHost {
 
     public boolean isMyOwnRegisteredMediator(Mediator mediator) {
         return mediator.equals(userPayload.getRegisteredMediator());
+    }
+
+    public int getMySocial2FANonce() {
+        return userPayload.getMySocial2FANonce();
+    }
+
+    public String getMySocial2FALink() {
+        return userPayload.getMySocial2FALink();
     }
 }

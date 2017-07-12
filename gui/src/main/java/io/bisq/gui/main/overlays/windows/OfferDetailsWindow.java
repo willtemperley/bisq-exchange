@@ -138,7 +138,7 @@ public class OfferDetailsWindow extends Overlay<OfferDetailsWindow> {
     }
 
     private void addContent() {
-        int rows = 5;
+        int rows = 6;
 
         List<String> acceptedBanks = offer.getAcceptedBankIds();
         boolean showAcceptedBanks = acceptedBanks != null && !acceptedBanks.isEmpty();
@@ -251,6 +251,16 @@ public class OfferDetailsWindow extends Overlay<OfferDetailsWindow> {
                 acceptedBanksTextField.setTooltip(tooltip);
             }
         }
+
+        if (paymentAccount != null) {
+            TextField accountAgeTextField = addLabelTextField(gridPane, ++rowIndex, Res.get("offerDetailsWindow.accountAge"),
+                    (formatter.formatDate(paymentAccount.getCreationDate()) + " / " +
+                            formatter.formatDurationAsDays(paymentAccount.getAge()))).second;
+
+            if (!paymentAccount.isAgeMature())
+                accountAgeTextField.setStyle("-fx-text-fill: -bs-warning;");
+        }
+
         if (showAcceptedCountryCodes) {
             String countries;
             Tooltip tooltip = null;

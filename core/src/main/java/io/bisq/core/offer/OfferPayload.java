@@ -138,6 +138,14 @@ public final class OfferPayload implements StoragePayload, RequiresOwnerIsOnline
     private final Map<String, String> extraDataMap;
     private final int protocolVersion;
 
+    // added on 0.5.2
+    private final long myAccountCreationDate;
+    private final int requiredAccountAge; // in days
+    @Nullable
+    private final String mySocial2FALink; // posted msg contains hash of onion + mySocial2FANonce
+    private final int mySocial2FANonce;
+    private final boolean requireSocial2FA;
+
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Constructor
@@ -180,7 +188,12 @@ public final class OfferPayload implements StoragePayload, RequiresOwnerIsOnline
                         boolean isPrivateOffer,
                         @Nullable String hashOfChallenge,
                         @Nullable Map<String, String> extraDataMap,
-                        int protocolVersion) {
+                        int protocolVersion,
+                        long myAccountCreationDate,
+                        int requiredAccountAge,
+                        String mySocial2FALink,
+                        int mySocial2FANonce,
+                        boolean requireSocial2FA) {
         this.id = id;
         this.date = date;
         this.ownerNodeAddress = ownerNodeAddress;
@@ -219,6 +232,11 @@ public final class OfferPayload implements StoragePayload, RequiresOwnerIsOnline
         this.hashOfChallenge = hashOfChallenge;
         this.extraDataMap = extraDataMap;
         this.protocolVersion = protocolVersion;
+        this.myAccountCreationDate = myAccountCreationDate;
+        this.requiredAccountAge = requiredAccountAge;
+        this.mySocial2FALink = mySocial2FALink;
+        this.mySocial2FANonce = mySocial2FANonce;
+        this.requireSocial2FA = requireSocial2FA;
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -262,7 +280,11 @@ public final class OfferPayload implements StoragePayload, RequiresOwnerIsOnline
                 .setLowerClosePrice(lowerClosePrice)
                 .setUpperClosePrice(upperClosePrice)
                 .setIsPrivateOffer(isPrivateOffer)
-                .setProtocolVersion(protocolVersion);
+                .setProtocolVersion(protocolVersion)
+                .setMyAccountCreationDate(myAccountCreationDate)
+                .setRequiredAccountAge(requiredAccountAge)
+                .setMySocial2FANonce(mySocial2FANonce)
+                .setRequireSocial2FA(requireSocial2FA);
 
         builder.setOfferFeePaymentTxId(checkNotNull(offerFeePaymentTxId,
                 "OfferPayload is in invalid state: offerFeePaymentTxID is not set when adding to P2P network."));
@@ -273,6 +295,7 @@ public final class OfferPayload implements StoragePayload, RequiresOwnerIsOnline
         Optional.ofNullable(acceptedCountryCodes).ifPresent(builder::addAllAcceptedCountryCodes);
         Optional.ofNullable(hashOfChallenge).ifPresent(builder::setHashOfChallenge);
         Optional.ofNullable(extraDataMap).ifPresent(builder::putAllExtraData);
+        Optional.ofNullable(mySocial2FALink).ifPresent(builder::setMySocial2FALink);
 
         return PB.StoragePayload.newBuilder().setOfferPayload(builder).build();
     }
@@ -286,6 +309,7 @@ public final class OfferPayload implements StoragePayload, RequiresOwnerIsOnline
         String hashOfChallenge = ProtoUtil.stringOrNullFromProto(proto.getHashOfChallenge());
         Map<String, String> extraDataMapMap = CollectionUtils.isEmpty(proto.getExtraDataMap()) ?
                 null : proto.getExtraDataMap();
+
         return new OfferPayload(proto.getId(),
                 proto.getDate(),
                 NodeAddress.fromProto(proto.getOwnerNodeAddress()),
@@ -327,7 +351,12 @@ public final class OfferPayload implements StoragePayload, RequiresOwnerIsOnline
                 proto.getIsPrivateOffer(),
                 hashOfChallenge,
                 extraDataMapMap,
-                proto.getProtocolVersion());
+                proto.getProtocolVersion(),
+                proto.getMyAccountCreationDate(),
+                proto.getRequiredAccountAge(),
+                proto.getMySocial2FALink().isEmpty() ? null : proto.getMySocial2FALink(),
+                proto.getMySocial2FANonce(),
+                proto.getRequireSocial2FA());
     }
 
 

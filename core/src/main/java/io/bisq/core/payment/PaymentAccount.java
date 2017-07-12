@@ -31,7 +31,9 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.Nullable;
+import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -142,4 +144,12 @@ public abstract class PaymentAccount implements PersistablePayload {
     }
 
     protected abstract PaymentAccountPayload getPayload();
+
+    public long getAge() {
+        return Instant.now().getEpochSecond() * 1000 - creationDate;
+    }
+
+    public boolean isAgeMature() {
+        return getAge() > TimeUnit.DAYS.toMillis(30);
+    }
 }

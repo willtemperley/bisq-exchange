@@ -68,6 +68,9 @@ public final class PreferencesPayload implements PersistableEnvelope {
     private PaymentAccount selectedPaymentAccountForCreateOffer;
     private boolean payFeeInBtc = true;
 
+    // added on 0.5.2
+    private int requiredAccountAge;
+    private boolean requireSocial2FA;
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Constructor
@@ -113,7 +116,9 @@ public final class PreferencesPayload implements PersistableEnvelope {
                 .setDirectoryChooserPath(directoryChooserPath)
                 .setBuyerSecurityDepositAsLong(buyerSecurityDepositAsLong)
                 .setUseAnimations(useAnimations)
-                .setPayFeeInBtc(payFeeInBtc);
+                .setPayFeeInBtc(payFeeInBtc)
+                .setRequiredAccountAge(requiredAccountAge)
+                .setRequireSocial2FA(requireSocial2FA);
 
         Optional.ofNullable(backupDirectory).ifPresent(builder::setBackupDirectory);
         Optional.ofNullable(preferredTradeCurrency).ifPresent(e -> builder.setPreferredTradeCurrency((PB.TradeCurrency) e.toProtoMessage()));
@@ -171,6 +176,8 @@ public final class PreferencesPayload implements PersistableEnvelope {
                 proto.getBuyerSecurityDepositAsLong(),
                 proto.getUseAnimations(),
                 paymentAccount,
-                proto.getPayFeeInBtc());
+                proto.getPayFeeInBtc(),
+                proto.getRequiredAccountAge(),
+                proto.getRequireSocial2FA());
     }
 }

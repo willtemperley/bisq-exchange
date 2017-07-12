@@ -61,12 +61,20 @@ public class UserPayload implements PersistableEnvelope {
     @Nullable
     private List<Mediator> acceptedMediators = new ArrayList<>();
 
+    // added on 0.5.2
+    @Nullable
+    private String mySocial2FALink; // posted msg contains hash of onion + mySocial2FANonce
+    private int mySocial2FANonce = new Random().nextInt(); // only set at first startup
+   
+
     public UserPayload() {
     }
 
     @Override
     public PB.PersistableEnvelope toProtoMessage() {
-        PB.UserPayload.Builder builder = PB.UserPayload.newBuilder();
+        PB.UserPayload.Builder builder = PB.UserPayload.newBuilder()
+                .setMySocial2FANonce(mySocial2FANonce);
+
         Optional.ofNullable(accountId).ifPresent(e -> builder.setAccountId(accountId));
         Optional.ofNullable(paymentAccounts)
                 .ifPresent(e -> builder.addAllPaymentAccounts(ProtoUtil.collectionToProto(paymentAccounts)));
@@ -90,6 +98,8 @@ public class UserPayload implements PersistableEnvelope {
         Optional.ofNullable(acceptedMediators)
                 .ifPresent(e -> builder.addAllAcceptedMediators(ProtoUtil.collectionToProto(acceptedMediators,
                         storage -> ((PB.StoragePayload) storage).getMediator())));
+        Optional.ofNullable(mySocial2FALink).ifPresent(builder::setMySocial2FALink);
+
         return PB.PersistableEnvelope.newBuilder().setUserPayload(builder).build();
     }
 
@@ -111,7 +121,8 @@ public class UserPayload implements PersistableEnvelope {
                         .collect(Collectors.toList())),
                 proto.getAcceptedMediatorsList().isEmpty() ? new ArrayList<>() : new ArrayList<>(proto.getAcceptedMediatorsList().stream()
                         .map(Mediator::fromProto)
-                        .collect(Collectors.toList()))
-        );
+                        .collect(Collectors.toList())),
+                proto.getMySocial2FALink().isEmpty() ? null : proto.getMySocial2FALink(),
+                proto.getMySocial2FANonce());
     }
 }

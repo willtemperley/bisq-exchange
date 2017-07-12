@@ -625,6 +625,11 @@ message OfferPayload {
     string hash_of_challenge = 36;
     map<string, string> extra_data = 37;
     int32 protocol_version = 38;
+    int64 my_account_creation_date = 39;
+    int32 required_account_age = 40;
+    string my_social_2FA_link = 41;
+    int32 my_social_2FA_nonce = 42;
+    bool require_social_2FA = 43;
 }
 
 // TODO not fully verified as impl. is not completed
@@ -1224,6 +1229,8 @@ message PreferencesPayload {
     bool use_animations = 31;
     PaymentAccount selectedPayment_account_for_createOffer = 32;
     bool pay_fee_in_Btc = 33;
+    int32 required_account_age = 34;
+    bool require_social_2FA = 35;
 }
 
 
@@ -1243,6 +1250,8 @@ message UserPayload {
     repeated Mediator accepted_mediators = 9;
     Arbitrator registered_arbitrator = 10;
     Mediator registered_mediator = 11;
+    string my_social_2FA_link = 12;
+    int32 my_social_2FA_nonce = 13;
 }
 
 
