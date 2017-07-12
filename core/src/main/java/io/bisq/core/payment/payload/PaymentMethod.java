@@ -123,19 +123,19 @@ public final class PaymentMethod implements PersistablePayload, Comparable {
             switch (BisqEnvironment.getBaseCurrencyNetwork().getCurrencyCode()) {
                 case "BTC":
                     // av. price June 2017: 2500 EUR/BTC
-                    maxTradeLimitMidRisk = Coin.parseCoin("0.5");
-                    maxTradeLimitLowRisk = Coin.parseCoin("1");
+                    maxTradeLimitMidRisk = Coin.parseCoin("1");
+                    maxTradeLimitLowRisk = Coin.parseCoin("2");
                     break;
                 case "LTC":
                     // av. price June 2017: 40 EUR/LTC
-                    maxTradeLimitMidRisk = Coin.parseCoin("25");
-                    maxTradeLimitLowRisk = Coin.parseCoin("50");
+                    maxTradeLimitMidRisk = Coin.parseCoin("50");
+                    maxTradeLimitLowRisk = Coin.parseCoin("100");
 
                     break;
                 case "DOGE":
                     // av. price June 2017: 0.002850 EUR/DOGE
-                    maxTradeLimitMidRisk = Coin.parseCoin("250000");
-                    maxTradeLimitLowRisk = Coin.parseCoin("500000");
+                    maxTradeLimitMidRisk = Coin.parseCoin("500000");
+                    maxTradeLimitLowRisk = Coin.parseCoin("1000000");
                     break;
 
                 default:
