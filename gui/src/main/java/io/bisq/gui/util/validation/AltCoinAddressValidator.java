@@ -245,6 +245,16 @@ public final class AltCoinAddressValidator extends InputValidator {
                     } catch (NxtReedSolomonValidator.DecodeException e) {
                         return wrongChecksum;
                     }
+                case "IOTA":
+                    boolean matches = input.matches("^[A-Z9]*$");
+                    if (!matches) {
+                        return regexTestFailed;
+                    }
+                    int length = input.length();
+                    if (length == 81 || length == 90) {
+                        return new ValidationResult(true);
+                    }
+                    return regexTestFailed;
                 default:
                     log.debug("Validation for AltCoinAddress not implemented yet. currencyCode: " + currencyCode);
                     return validationResult;

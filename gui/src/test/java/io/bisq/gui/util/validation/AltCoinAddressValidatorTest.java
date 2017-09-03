@@ -135,4 +135,24 @@ public class AltCoinAddressValidatorTest {
         assertFalse(validator.validate("NXT-JM2U-U4AE-G7WF-3Np9F").isValid);
         assertFalse(validator.validate("NXT-2222-2222-2222-22222").isValid);
     }
+
+    @Test
+    public void testIOTA() {
+        AltCoinAddressValidator validator = new AltCoinAddressValidator();
+        validator.setCurrencyCode("IOTA");
+
+        //With checksum
+        assertTrue(validator.validate("DCLHWOVSG9WLHDYYWIAUGCTBONVPS9MJQERICJBPGJZTADZKJRGWLPETNANVWZHVYKNFCUQLQZQSCQFBXTUBNDRAWW").isValid);
+        assertTrue(validator.validate("JKJCEPUYGNLYBRNGV9LXDLJPNWHE9PFZGSLNTOYBGWSJGOKQ9LZSOUJMVACLATVOENFHWFQGZBVRIGSC9METHTEQKA").isValid);
+
+        //Without checksum
+        assertTrue(validator.validate("DCLHWOVSG9WLHDYYWIAUGCTBONVPS9MJQERICJBPGJZTADZKJRGWLPETNANVWZHVYKNFCUQLQZQSCQFBX").isValid);
+        assertTrue(validator.validate("JKJCEPUYGNLYBRNGV9LXDLJPNWHE9PFZGSLNTOYBGWSJGOKQ9LZSOUJMVACLATVOENFHWFQGZBVRIGSC9").isValid);
+
+        assertFalse(validator.validate("abcde").isValid);
+        assertFalse(validator.validate("AZ9").isValid);
+        assertFalse(validator.validate("MiXeDCaseNLYBRNGV9LXDLJPNWHE9PFZGSLNTOYBGWSJGOKQ9LZSOUJMVACLATVOENFHWFQGZBVRIGSC9").isValid);
+        assertFalse(validator.validate("JKJCE1UYGNLYBRNGV9LXDLJPNWHE9PFZGSLNTOYBGWSJGOKQ9LZSOUJMVACLATVOENFHWFQGZBVRIGSC9").isValid);
+
+    }
 }
